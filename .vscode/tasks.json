@@ -1,0 +1,59 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start backend on free port 5002",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5002 ; set NODE_ENV=development ; node src/server.js",
+			"args": [],
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Restart backend dev server",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Restart backend after route fix",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"group": "build"
+		},
+		{
+			"label": "Start backend on 5001",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start backend on 5001",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Start backend on 5001",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start backend on 5001",
+			"type": "shell",
+			"command": "cd \"e:\\Bus-ticketting\\backend\" ; set PORT=5001 ; set NODE_ENV=development ; node src/server.js",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

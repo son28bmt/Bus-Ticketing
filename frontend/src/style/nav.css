@@ -1,0 +1,653 @@
+/* Modern Navbar Styles */
+.modern-navbar {
+    width: 100%;
+    height: 100px !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 164, 65, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
+}
+
+.modern-navbar.scrolled {
+    /* color: Black; */
+    background: rgba(27, 157, 60, 0.98);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-container {
+    max-width: 100%;
+    margin: 0 30px;
+    display: grid;
+    grid-template-columns: 15% 60% 25%;
+    align-items: center;
+    padding: 0 2rem;
+    height: 100%;
+}
+
+/* Logo Section - 15% */
+.navbar-brand {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-self: start;
+}
+
+.brand-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-logo {
+    width: 100px;
+    height: 100px;
+    /* border-radius: 8px; */
+    object-fit: cover;
+    /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #010203;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.brand-tagline {
+    font-size: 0.7rem;
+    color: #718096;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Desktop Navigation - 60% */
+.navbar-menu.desktop-menu {
+    grid-column: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 2rem;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.nav-item {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+/* ✅ Nav links với underline effect */
+.nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #475977;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    position: relative;
+    white-space: nowrap;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* ✅ Hover effect - chỉ đổi màu chữ và transform */
+.nav-link:hover {
+    /* color: #1f6ba9; */
+
+    transform: translateY(-5px);
+}
+
+/* ✅ Thanh underline với hiệu ứng trải ra từ giữa */
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    height: 3px;
+    background: linear-gradient(90deg, #1f6ba9, #09d769);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+    width: 80%;
+}
+
+
+
+.nav-link.active::after {
+    width: 80%;
+    background: #09d769;
+}
+
+.nav-link.active:hover::after {
+    background: linear-gradient(90deg, #09d769, #1f6ba9);
+}
+
+.nav-icon {
+    font-size: 1.1rem;
+}
+
+.nav-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+/* User Section - 25% */
+.navbar-user {
+    grid-column: 3;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.user-dropdown {
+    position: relative;
+}
+
+.user-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgb(89, 214, 110);
+    border: 2px solid #35bb40;
+    border-radius: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    min-width: 200px;
+    max-width: 280px;
+}
+
+.user-button:hover {
+    border-color: #4299e1;
+    box-shadow: 0 6px 20px rgba(5, 136, 243, 0.15);
+    transform: translateY(-1px);
+}
+
+.user-avatar {
+    flex-shrink: 0;
+}
+
+.avatar-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: white;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #2d3748 !important;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: #718096;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dropdown-arrow {
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.arrow {
+    font-size: 0.8rem;
+    color: #a0aec0;
+    transition: transform 0.3s ease;
+}
+
+.arrow.up {
+    transform: rotate(180deg);
+}
+
+/* Auth Buttons */
+.auth-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-login,
+.btn-register {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.btn-login {
+    color: #4299e1;
+    background: white;
+    border-color: #4299e1;
+}
+
+.btn-login:hover {
+    background: #4299e1;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+}
+
+.btn-register {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+}
+
+.btn-register:hover {
+    background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(49, 130, 206, 0.4);
+}
+
+.btn-icon {
+    font-size: 1rem;
+}
+
+.btn-text {
+    font-size: 0.9rem;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    min-width: 280px;
+    padding: 12px 0;
+    z-index: 1001;
+    animation: dropdownFadeIn 0.3s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-header {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    margin-bottom: 8px;
+}
+
+.user-details strong {
+    display: block;
+    color: #2d3748 !important;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+.user-details small {
+    color: #718096;
+    font-size: 0.8rem;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 8px 0;
+}
+
+.dropdown-section {
+    padding: 8px 0;
+}
+
+.section-title {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 20px 12px;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #4a5568;
+    transition: all 0.2s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    color: #2d3748;
+    transform: translateX(4px);
+}
+
+.item-icon {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.item-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.logout-btn {
+    color: #f9f4f4 !important;
+}
+
+.logout-btn:hover {
+    background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%) !important;
+    color: #c53030 !important;
+}
+
+/* Mobile Menu Button */
+.mobile-menu-btn {
+    display: none;
+    grid-column: 3;
+    justify-self: end;
+}
+
+.hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.hamburger span {
+    width: 100%;
+    height: 3px;
+    background: #4a5568;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(8px, -8px);
+}
+
+/* Mobile Menu */
+.mobile-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    animation: mobileMenuSlide 0.3s ease;
+    display: none;
+}
+
+@keyframes mobileMenuSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-nav-links {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* ✅ Mobile nav links cũng có underline effect */
+.mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    text-decoration: none;
+    color: #4a5568;
+    font-weight: 500;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.mobile-nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 15px;
+    width: 0;
+    height: 2px;
+    background: #4299e1;
+    transition: width 0.3s ease;
+}
+
+.mobile-nav-link:hover::after,
+.mobile-nav-link.active::after {
+    width: calc(100% - 30px);
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+    color: #4299e1;
+    transform: translateX(8px);
+}
+
+.mobile-auth {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mobile-auth-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 15px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.mobile-auth-btn.login {
+    color: #4299e1;
+    background: #f7fafc;
+    border: 2px solid #4299e1;
+}
+
+.mobile-auth-btn.register {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .navbar-container {
+        max-width: 100%;
+        grid-template-columns: 20% 55% 25%;
+        padding: 0 1.5rem;
+        gap: 1.5rem;
+    }
+
+    .nav-links {
+        gap: 1.5rem;
+    }
+
+    .nav-link {
+        min-width: 100px;
+        padding: 10px 16px;
+    }
+
+    .nav-text {
+        font-size: 0.85rem;
+    }
+
+    .brand-logo {
+        width: 70px;
+        height: 70px;
+    }
+}
+
+@media (max-width: 768px) {
+    .modern-navbar {
+        height: 70px !important;
+    }
+
+    .navbar-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        height: 70px;
+        gap: 1rem;
+    }
+
+    .brand-logo {
+        width: 50px;
+        height: 50px;
+    }
+
+    .brand-name {
+        font-size: 1.2rem;
+    }
+
+    .brand-tagline {
+        display: none;
+    }
+
+    .desktop-menu {
+        display: none !important;
+    }
+
+    .navbar-user {
+        display: none;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+        grid-column: unset;
+        justify-self: unset;
+    }
+
+    .mobile-menu {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-container {
+        padding: 0.5rem;
+    }
+
+    .logo-container {
+        gap: 8px;
+    }
+
+    .brand-name {
+        font-size: 1.1rem;
+    }
+
+    .brand-logo {
+        width: 45px;
+        height: 45px;
+    }
+}
+
+/* Better spacing for content */
+.navbar-container > * {
+    min-width: 0;
+}

@@ -1,0 +1,52 @@
+{
+  "development": {
+    "username": "root",
+    "password": "28072003",
+    "database": "bus_ticketing",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "port": 3306,
+    "logging": true,
+    "timezone": "+07:00",
+    "define": {
+      "timestamps": true,
+      "underscored": false,
+      "underscoredAll": false,
+      "charset": "utf8mb4",
+      "collate": "utf8mb4_unicode_ci"
+    },
+    "dialectOptions": {
+      "charset": "utf8mb4",
+      "collate": "utf8mb4_unicode_ci",
+      "useUTC": false,
+      "dateStrings": true,
+      "typeCast": true
+    }
+  },
+  "test": {
+    "username": "root",
+    "password": "28072003",
+    "database": "bus_ticketing_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "port": 3306,
+    "logging": false
+  },
+  "production": {
+    "username": "root",
+    "password": "28072003",
+    "database": "bus_ticketing_prod",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "port": 3306,
+    "logging": false,
+    "dialectOptions": {
+      "charset": "utf8mb4",
+      "collate": "utf8mb4_unicode_ci",
+      "ssl": {
+        "require": false,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+/* Đảm bảo các page có content ít vẫn đẩy footer xuống cuối */
+.page-container {
+    min-height: calc(100vh - 200px); /* Navbar + Footer space */
+    display: flex;
+    flex-direction: column;
+}
+
+.page-content {
+    flex: 1;
+    padding: 40px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-container {
+        min-height: calc(100vh - 170px); /* Mobile navbar + footer */
+    }
+}

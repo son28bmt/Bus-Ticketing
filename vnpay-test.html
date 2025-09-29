@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNPay Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔵 VNPay Integration Test Page</h1>
+    <p>Test VNPay payment integration với ShanBus system</p>
+
+    <div class="test-section info">
+        <h3>📋 Test Configuration</h3>
+        <label>API URL: <input type="text" id="apiUrl" value="http://localhost:5001" /></label><br>
+        <label>Auth Token: <input type="text" id="authToken" placeholder="Paste your JWT token here" /></label><br>
+        <button onclick="loadTokenFromLocalStorage()">Load Token from LocalStorage</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🏦 Test 1: VNPay Banks API</h3>
+        <button onclick="testBanksAPI()">Test Banks API</button>
+        <div id="banksResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>💳 Test 2: Create VNPay Payment URL</h3>
+        <label>Booking ID: <input type="number" id="bookingId" value="1" /></label><br>
+        <label>Bank Code: <select id="bankCode">
+            <option value="">Auto select</option>
+            <option value="NCB">NCB - National Citizen Bank</option>
+            <option value="SACOMBANK">SACOMBANK</option>
+            <option value="EXIMBANK">EXIMBANK</option>
+            <option value="MSBANK">MSBANK - Maritime Bank</option>
+            <option value="NAMABANK">NAMABANK - Nam A Bank</option>
+        </select></label><br>
+        <button onclick="testCreatePaymentURL()">Create Payment URL</button>
+        <div id="paymentUrlResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔄 Test 3: Query Transaction</h3>
+        <label>Order ID: <input type="text" id="orderId" placeholder="Order ID from payment URL" /></label><br>
+        <button onclick="testQueryTransaction()">Query Transaction</button>
+        <div id="queryResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Test Results</h3>
+        <button onclick="clearResults()">Clear Results</button>
+        <div id="testLog"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div class="${type}">[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('testLog').innerHTML = '';
+            document.getElementById('banksResult').innerHTML = '';
+            document.getElementById('paymentUrlResult').innerHTML = '';
+            document.getElementById('queryResult').innerHTML = '';
+        }
+
+        function loadTokenFromLocalStorage() {
+            try {
+                const userStore = JSON.parse(localStorage.getItem('user-store') || '{}');
+                const token = userStore?.state?.token;
+                if (token) {
+                    document.getElementById('authToken').value = token;
+                    log('✅ Token loaded from localStorage', 'success');
+                } else {
+                    log('❌ No token found in localStorage', 'error');
+                }
+            } catch (error) {
+                log('❌ Error loading token: ' + error.message, 'error');
+            }
+        }
+
+        async function testBanksAPI() {
+            log('🏦 Testing VNPay Banks API...');
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/payment/vnpay/banks`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`✅ Banks API success: ${result.data.length} banks loaded`, 'success');
+                    document.getElementById('banksResult').innerHTML = 
+                        `<pre>${JSON.stringify(result.data.slice(0, 5), null, 2)}</pre>`;
+                } else {
+                    log(`❌ Banks API failed: ${result.message}`, 'error');
+                    document.getElementById('banksResult').innerHTML = 
+                        `<div class="error">${result.message}</div>`;
+                }
+            } catch (error) {
+                log(`❌ Banks API error: ${error.message}`, 'error');
+                document.getElementById('banksResult').innerHTML = 
+                    `<div class="error">${error.message}</div>`;
+            }
+        }
+
+        async function testCreatePaymentURL() {
+            log('💳 Testing Create VNPay Payment URL...');
+            const apiUrl = document.getElementById('apiUrl').value;
+            const token = document.getElementById('authToken').value;
+            const bookingId = document.getElementById('bookingId').value;
+            const bankCode = document.getElementById('bankCode').value;
+
+            if (!token) {
+                log('❌ Please provide auth token', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/payment/vnpay/create-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        bookingId: parseInt(bookingId),
+                        bankCode: bankCode || undefined
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    log(`✅ Payment URL created successfully`, 'success');
+                    document.getElementById('paymentUrlResult').innerHTML = `
+                        <div class="success">
+                            <p><strong>Payment URL:</strong> <a href="${result.data.paymentUrl}" target="_blank">Open VNPay</a></p>
+                            <p><strong>Order ID:</strong> ${result.data.orderId}</p>
+                            <p><strong>Amount:</strong> ${new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                            }).format(result.data.amount)}</p>
+                            <button onclick="window.open('${result.data.paymentUrl}', '_blank')">🚀 Open VNPay Sandbox</button>
+                        </div>
+                    `;
+                    
+                    // Auto-fill order ID for query test
+                    document.getElementById('orderId').value = result.data.orderId;
+                } else {
+                    log(`❌ Payment URL creation failed: ${result.message}`, 'error');
+                    document.getElementById('paymentUrlResult').innerHTML = 
+                        `<div class="error">${result.message}</div>`;
+                }
+            } catch (error) {
+                log(`❌ Payment URL API error: ${error.message}`, 'error');
+                document.getElementById('paymentUrlResult').innerHTML = 
+                    `<div class="error">${error.message}</div>`;
+            }
+        }
+
+        async function testQueryTransaction() {
+            log('🔄 Testing Query Transaction...');
+            const apiUrl = document.getElementById('apiUrl').value;
+            const token = document.getElementById('authToken').value;
+            const orderId = document.getElementById('orderId').value;
+
+            if (!token || !orderId) {
+                log('❌ Please provide auth token and order ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/payment/vnpay/transaction/${orderId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    log(`✅ Transaction query successful`, 'success');
+                    document.getElementById('queryResult').innerHTML = 
+                        `<pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+                } else {
+                    log(`❌ Transaction query failed: ${result.message}`, 'error');
+                    document.getElementById('queryResult').innerHTML = 
+                        `<div class="error">${result.message}</div>`;
+                }
+            } catch (error) {
+                log(`❌ Query transaction error: ${error.message}`, 'error');
+                document.getElementById('queryResult').innerHTML = 
+                    `<div class="error">${error.message}</div>`;
+            }
+        }
+
+        // Auto-load token on page load
+        window.onload = function() {
+            loadTokenFromLocalStorage();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+/* Admin manage pages shared styles */
+.container {
+  max-width: 1200px;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th, .table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.table thead th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.btn { cursor: pointer; padding: 6px 12px; border-radius: 6px; border: 1px solid transparent; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-secondary { background: #9ca3af; color: #fff; margin-left: 8px; }
+.btn-outline-primary { color: #2563eb; border-color: #2563eb; background: #fff; margin-right: 6px; }
+.btn-outline-danger { color: #dc2626; border-color: #dc2626; background: #fff; }
+.btn-sm { padding: 4px 8px; font-size: 12px; }
+.alert { padding: 10px 12px; border-radius: 6px; }
+.alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.status-badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.status-badge.active { background: #dcfce7; color: #166534; }
+.status-badge.inactive { background: #fee2e2; color: #991b1b; }
+.grid label { display: block; font-weight: 600; margin-bottom: 6px; }
+.grid input, .grid select { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 6px; }
