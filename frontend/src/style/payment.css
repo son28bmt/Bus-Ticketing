@@ -5,6 +5,11 @@
   background: #f8fafc;
 }
 
+/* Ensure payment pages use the app's main font stack */
+.payment-page, .payment-page * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+}
+
 .payment-header {
   display: flex;
   align-items: center;

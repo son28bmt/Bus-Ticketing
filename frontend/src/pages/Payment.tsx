@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/user';
 import { usePayment } from '../hooks/usePayment';
@@ -20,9 +20,22 @@ export default function Payment() {
   const { user } = useUserStore();
   const { createBooking, processPayment, isLoading, error } = usePayment();
   const { payWithVNPay, loading: vnpayLoading } = useVNPay();
-  
-  const locationState = location.state as LocationState;
-  const { trip, selectedSeats, totalPrice } = locationState || {};
+
+  const locationState = location.state as LocationState | undefined;
+  const trip = locationState?.trip;
+  const selectedSeats = locationState?.selectedSeats ?? [];
+  const stateTotalPrice = locationState?.totalPrice ?? 0;
+
+  const computedTotal = useMemo(() => {
+    if (!trip) return 0;
+    return selectedSeats.reduce((sum, seat) => {
+      const multiplier = seat.priceMultiplier ?? 1;
+      return sum + trip.basePrice * multiplier;
+    }, 0);
+  }, [trip, selectedSeats]);
+
+  const totalAmount = computedTotal > 0 ? computedTotal : stateTotalPrice;
+  const normalizedTotal = Math.max(0, Math.round(totalAmount));
 
   const [passengerInfo, setPassengerInfo] = useState({
     name: user?.name || '',
@@ -31,8 +44,8 @@ export default function Payment() {
   });
 
   // Debug user data
-  console.log('🔍 User data:', user);
-  console.log('🔍 Initial passenger info:', passengerInfo);
+  console.log('ðŸ” User data:', user);
+  console.log('ðŸ” Initial passenger info:', passengerInfo);
 
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'E_WALLET' | 'VNPAY'>('BANK_TRANSFER');
   const [notes, setNotes] = useState('');
@@ -43,7 +56,7 @@ export default function Payment() {
 
   // Redirect if no trip data
   useEffect(() => {
-    if (!trip || !selectedSeats || selectedSeats.length === 0) {
+    if (!trip || selectedSeats.length === 0) {
       navigate('/search');
       return;
     }
@@ -58,7 +71,7 @@ export default function Payment() {
   }, [user, navigate]);
 
   const handlePassengerInfoChange = (field: string, value: string) => {
-    console.log(`📝 Changing ${field}:`, value);
+    console.log(`ðŸ“ Changing ${field}:`, value);
     setPassengerInfo(prev => ({
       ...prev,
       [field]: value
@@ -66,14 +79,14 @@ export default function Payment() {
   };
 
   const handleSubmitBooking = async () => {
-    console.log('🚀 Starting handleSubmitBooking...');
+    console.log('ðŸš€ Starting handleSubmitBooking...');
     
-    if (!trip || !selectedSeats || !user) {
-      console.log('❌ Missing required data:', { trip: !!trip, selectedSeats: !!selectedSeats, user: !!user });
+    if (!trip || !user) {
+      console.log('Missing required data:', { trip: !!trip, selectedSeats: selectedSeats.length, user: !!user });
       return;
     }
 
-    console.log('🔍 Validating form data:', {
+    console.log('ðŸ” Validating form data:', {
       name: `"${passengerInfo.name}"`,
       nameLength: passengerInfo.name.trim().length,
       phone: `"${passengerInfo.phone}"`,
@@ -86,13 +99,13 @@ export default function Payment() {
     const trimmedPhone = passengerInfo.phone.trim();
 
     if (!trimmedName) {
-      console.log('❌ Name validation failed');
+      console.log('✖ Name validation failed');
       alert('Vui lòng nhập tên hành khách');
       return;
     }
 
     if (!trimmedPhone) {
-      console.log('❌ Phone validation failed - empty');
+      console.log('✖ Phone validation failed - empty');
       alert('Vui lòng nhập số điện thoại');
       return;
     }
@@ -103,12 +116,18 @@ export default function Payment() {
     const phonePattern = /^0?[1-9][0-9]{8,9}$/; // Allow optional 0 prefix, then 9-10 digits
     
     if (!phonePattern.test(cleanPhone)) {
-      console.log('❌ Phone validation failed - format:', trimmedPhone, 'cleaned:', cleanPhone);
+      console.log('âŒ Phone validation failed - format:', trimmedPhone, 'cleaned:', cleanPhone);
       alert(`Số điện thoại không hợp lệ. Vui lòng nhập 10-11 số (VD: 0123456789)\nBạn đã nhập: "${trimmedPhone}"`);
       return;
     }
 
-    console.log('✅ Validation passed');
+    console.log('Validation passed');
+
+    if (normalizedTotal <= 0) {
+      console.log('Invalid total amount calculated:', { normalizedTotal, computedTotal, stateTotalPrice });
+      alert('Không thể tính tổng tiền đặt vé. Vui lòng chọn lại ghế và thử lại.');
+      return;
+    }
 
     try {
       const bookingData: BookingData = {
@@ -117,17 +136,17 @@ export default function Payment() {
         passengerPhone: cleanPhone, // Use cleaned phone number
         passengerEmail: passengerInfo.email.trim() || undefined,
         seatNumbers: selectedSeats.map(seat => seat.seatNumber),
-        totalPrice,
+        totalPrice: normalizedTotal,
         paymentMethod,
         notes: notes.trim() || undefined
       };
 
-      console.log('🔄 Submitting booking:', bookingData);
+  console.log('🔄 Submitting booking:', bookingData);
 
-      // Handle VNPay payment flow
+  // Handle VNPay payment flow
       if (paymentMethod === 'VNPAY') {
         const bookingResult = await createBooking(bookingData);
-        console.log('✅ Booking created for VNPay:', bookingResult);
+        console.log('âœ… Booking created for VNPay:', bookingResult);
         
         // Use VNPay hook to redirect to payment URL
         await payWithVNPay(bookingResult.booking.id);
@@ -136,27 +155,27 @@ export default function Payment() {
 
       // Handle other payment methods
       const bookingResult = await createBooking(bookingData);
-      console.log('✅ Booking created successfully:', bookingResult);
+      console.log('âœ… Booking created successfully:', bookingResult);
 
       // Show VietQR for BANK_TRANSFER flow; otherwise proceed to success
       if (paymentMethod === 'BANK_TRANSFER' && bookingResult.payment) {
         setPendingPayment({
           booking: { id: bookingResult.booking.id, bookingCode: bookingResult.booking.bookingCode },
-          payment: { id: bookingResult.payment.id, paymentCode: bookingResult.payment.paymentCode, qrImageUrl: (bookingResult as unknown as { payment?: { qrImageUrl?: string } }).payment?.qrImageUrl }
+          payment: { id: bookingResult.payment.id, paymentCode: bookingResult.payment.paymentCode, qrImageUrl: bookingResult.payment.qrImageUrl }
         });
         return;
       }
 
-      // For other payment methods, go to success immediately
+  // For other payment methods, go to success immediately
       navigate('/payment/success', { state: { booking: bookingResult.booking, payment: bookingResult.payment, trip: bookingResult.trip } });
 
     } catch (error) {
-      console.error('❌ Booking failed:', error);
+    console.error('✖ Booking failed:', error);
       // Error is handled by usePayment hook
     }
   };
 
-  if (!trip || !selectedSeats) {
+  if (!trip || selectedSeats.length === 0) {
     return (
       <div className="payment-page">
         <div className="container">
@@ -177,7 +196,7 @@ export default function Payment() {
             className="back-btn"
             onClick={() => navigate(-1)}
           >
-            ← Quay lại
+            Quay lại
           </button>
           <h1>Thanh toán đặt vé</h1>
         </div>
@@ -190,7 +209,7 @@ export default function Payment() {
 
         {/* Debug info - remove in production */}
         {import.meta.env.DEV && (
-          <div style={{ background: '#f0f0f0', padding: '10px', marginBottom: '20px', fontSize: '12px' }}>
+          <div style={{ display: 'none', background: '#f0f0f0', padding: '10px', marginBottom: '20px', fontSize: '12px' }}>
             <strong>Debug Info:</strong>
             <pre>{JSON.stringify({
               name: passengerInfo.name,
@@ -208,7 +227,7 @@ export default function Payment() {
           <div className="payment-forms">
             {/* Passenger Information */}
             <div className="passenger-form-card">
-              <h3>👤 Thông tin hành khách</h3>
+              <h3>Lấy thông tin hành khách</h3>
               <div className="passenger-form">
                 <div className="form-group">
                   <label>Họ và tên *</label>
@@ -259,7 +278,7 @@ export default function Payment() {
             {/* Payment Form or VietQR Confirmation */}
             {!pendingPayment ? (
               <PaymentForm
-                totalAmount={totalPrice}
+                totalAmount={normalizedTotal}
                 selectedMethod={paymentMethod}
                 onPaymentMethodChange={setPaymentMethod}
                 onSubmit={handleSubmitBooking}
@@ -290,7 +309,7 @@ export default function Payment() {
                             passengerName: passengerInfo.name,
                             passengerPhone: passengerInfo.phone,
                             seatNumbers: selectedSeats.map(s => s.seatNumber),
-                            totalPrice,
+                            totalPrice: normalizedTotal,
                             paymentStatus: 'PAID',
                             bookingStatus: 'CONFIRMED',
                             createdAt: new Date().toISOString()
@@ -300,7 +319,7 @@ export default function Payment() {
                         }
                       });
                     } catch (e) {
-                      console.error('❌ Confirm payment failed:', e);
+                      console.error('✖ Confirm payment failed:', e);
                       alert('Xác nhận thanh toán thất bại. Vui lòng thử lại.');
                     }
                   }}
@@ -324,3 +343,9 @@ export default function Payment() {
     </div>
   );
 }
+
+
+
+
+
+

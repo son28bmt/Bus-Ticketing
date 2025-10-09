@@ -1,4 +1,4 @@
-export interface Seat {
+﻿export interface Seat {
   id: number;
   seatNumber: string;
   seatType: 'STANDARD' | 'VIP' | 'SLEEPER';
@@ -61,6 +61,14 @@ export interface BookingResponse {
       amount: number;
       paymentMethod: string;
       paymentStatus: string;
+      qrImageUrl?: string;
+      vietqr?: {
+        bankCode: string;
+        accountNo: string;
+        accountName: string;
+        amount: number;
+        addInfo: string;
+      };
     };
     trip: {
       id: number;
@@ -69,6 +77,13 @@ export interface BookingResponse {
       arrivalLocation: string;
       departureTime: string;
       arrivalTime: string;
+      availableSeats?: number;
+      bus?: {
+        id: number;
+        busNumber: string;
+        busType: string;
+        totalSeats?: number;
+      } | null;
     };
   };
 }
@@ -120,7 +135,7 @@ export interface UserBooking {
   }>;
 }
 
-// API Error interface để tái sử dụng
+// API Error interface Ä‘á»ƒ tÃ¡i sá»­ dá»¥ng
 export interface ApiError {
   response?: {
     data?: {

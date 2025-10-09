@@ -1,4 +1,4 @@
-import { formatPrice } from '../../utils/price';
+﻿import { formatPrice } from '../../utils/price';
 import { formatTime, formatDate } from '../../utils/formatDate';
 import type { Trip, Seat } from '../../types/payment';
 
@@ -15,62 +15,83 @@ interface BookingSummaryProps {
 export default function BookingSummary({ trip, selectedSeats, passengerInfo }: BookingSummaryProps) {
   const calculateTotal = () => {
     return selectedSeats.reduce((total, seat) => {
-      const multiplier = seat.priceMultiplier || 1;
-      return total + (trip.basePrice * multiplier);
+      const multiplier = seat.priceMultiplier ?? 1;
+      return total + trip.basePrice * multiplier;
     }, 0);
   };
 
   const getSeatTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      STANDARD: 'Thường',
+      STANDARD: 'Standard',
       VIP: 'VIP',
-      SLEEPER: 'Giường nằm'
+      SLEEPER: 'Sleeper'
     };
     return labels[type] || type;
   };
 
+  const [routeDeparture = '', routeArrival = ''] = (trip.route || '')
+    .split('->')
+    .map((part) => part.trim());
+
+  const resolvedDeparture = trip.departureLocation || routeDeparture;
+  const resolvedArrival = trip.arrivalLocation || routeArrival;
+
   return (
     <div className="booking-summary-card">
-      <h3>📋 Thông tin đặt vé</h3>
-      
+      <h3>Booking summary</h3>
+
       {/* Trip Info */}
       <div className="trip-summary">
-        <h4>🚌 Thông tin chuyến xe</h4>
+        <h4>Trip details</h4>
         <div className="trip-route">
           <div className="route-info">
             <span className="departure">
-              <strong>{trip.departureLocation || (trip.route?.split('→')[0]?.trim() || '')}</strong>
-              <small>{formatTime(trip.departureTime)} - {formatDate(trip.departureTime)}</small>
+              <strong>{resolvedDeparture}</strong>
+              <small>
+                {formatTime(trip.departureTime)} - {formatDate(trip.departureTime)}
+              </small>
             </span>
-            <span className="arrow">→</span>
+            <span className="arrow">-&gt;</span>
             <span className="arrival">
-              <strong>{trip.arrivalLocation || (trip.route?.split('→')[1]?.trim() || '')}</strong>
-              <small>{formatTime(trip.arrivalTime)} - {formatDate(trip.arrivalTime)}</small>
+              <strong>{resolvedArrival}</strong>
+              <small>
+                {formatTime(trip.arrivalTime)} - {formatDate(trip.arrivalTime)}
+              </small>
             </span>
           </div>
         </div>
-        
+
         <div className="trip-details">
-          <p><strong>Xe:</strong> {trip.bus.busNumber} ({trip.bus.busType})</p>
-          <p><strong>Tuyến:</strong> {trip.route}</p>
+          <p>
+            <strong>Bus:</strong> {trip.bus.busNumber} ({trip.bus.busType})
+          </p>
+          <p>
+            <strong>Route:</strong> {trip.route}
+          </p>
         </div>
       </div>
 
       {/* Passenger Info */}
       <div className="passenger-summary">
-        <h4>👤 Thông tin hành khách</h4>
+        <h4>Passenger details</h4>
         <div className="passenger-details">
-          <p><strong>Họ tên:</strong> {passengerInfo.name}</p>
-          <p><strong>Điện thoại:</strong> {passengerInfo.phone}</p>
+          <p>
+            <strong>Name:</strong> {passengerInfo.name}
+          </p>
+          <p>
+            <strong>Phone:</strong> {passengerInfo.phone}
+          </p>
           {passengerInfo.email && (
-            <p><strong>Email:</strong> {passengerInfo.email}</p>
+            <p>
+              <strong>Email:</strong> {passengerInfo.email}
+            </p>
           )}
         </div>
       </div>
 
       {/* Selected Seats */}
       <div className="seats-summary">
-        <h4>💺 Ghế đã chọn</h4>
+        <h4>Selected seats</h4>
         <div className="selected-seats-list">
           {selectedSeats.map((seat) => (
             <div key={seat.id} className="seat-item">
@@ -79,7 +100,7 @@ export default function BookingSummary({ trip, selectedSeats, passengerInfo }: B
                 <span className="seat-type">({getSeatTypeLabel(seat.seatType)})</span>
               </div>
               <div className="seat-price">
-                {formatPrice(trip.basePrice * (seat.priceMultiplier || 1))}
+                {formatPrice(trip.basePrice * (seat.priceMultiplier ?? 1))}
               </div>
             </div>
           ))}
@@ -90,24 +111,24 @@ export default function BookingSummary({ trip, selectedSeats, passengerInfo }: B
       <div className="price-summary">
         <div className="price-breakdown">
           <div className="price-row">
-            <span>Số ghế:</span>
-            <span>{selectedSeats.length} ghế</span>
+            <span>Seats:</span>
+            <span>{selectedSeats.length}</span>
           </div>
           <div className="price-row">
-            <span>Giá vé cơ bản:</span>
+            <span>Base fare:</span>
             <span>{formatPrice(trip.basePrice)}</span>
           </div>
-          {selectedSeats.some(seat => seat.priceMultiplier && seat.priceMultiplier > 1) && (
+          {selectedSeats.some((seat) => (seat.priceMultiplier ?? 1) > 1) && (
             <div className="price-row">
-              <span>Phí ghế VIP:</span>
-              <span>Đã tính</span>
+              <span>VIP surcharge:</span>
+              <span>Included</span>
             </div>
           )}
         </div>
-        
+
         <div className="total-price">
           <div className="price-row total">
-            <span>Tổng cộng:</span>
+            <span>Total:</span>
             <span className="total-amount">{formatPrice(calculateTotal())}</span>
           </div>
         </div>

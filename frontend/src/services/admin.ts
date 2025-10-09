@@ -15,6 +15,22 @@ export interface Paginated<T> {
   } & T;
 }
 
+export interface BookingStatsSummary {
+  totalBookings: number;
+  todayBookings: number;
+  weekBookings: number;
+  monthBookings: number;
+  confirmedBookings: number;
+  cancelledBookings: number;
+  totalRevenue: number;
+}
+
+export interface BookingStatsResponse {
+  success: boolean;
+  data: BookingStatsSummary;
+  message?: string;
+}
+
 export const adminAPI = {
   // Trips
   getTrips: async (params?: Record<string, unknown>) => {
@@ -66,5 +82,10 @@ export const adminAPI = {
   getBookings: async (params?: Record<string, unknown>) => {
     const res = await api.get('/admin/bookings', { params });
     return res.data as Paginated<{ bookings: UserBooking[] }>;
+  },
+
+  getBookingStats: async () => {
+    const res = await api.get<BookingStatsResponse>('/admin/bookings/stats');
+    return res.data;
   }
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/user';
 import { tripAPI } from '../services/api';
@@ -15,16 +15,16 @@ type UITrip = ApiTrip & { bus: ApiBus & { seats?: Seat[] } };
 export default function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useUserStore(); // ✅ Get user from store
+  const { user } = useUserStore(); // âœ… Get user from store
 
   const [trip, setTrip] = useState<UITrip | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Move helper functions inside useCallback để tránh dependency issues
+  // âœ… Move helper functions inside useCallback Ä‘á»ƒ trÃ¡nh dependency issues
   const loadTripDetail = useCallback(async (tripId: string) => {
-    // ✅ Type guard để kiểm tra seats array (moved inside)
+    // âœ… Type guard Ä‘á»ƒ kiá»ƒm tra seats array (moved inside)
     const isValidSeatArray = (seats: unknown): seats is Seat[] => {
       return (
         Array.isArray(seats) &&
@@ -40,11 +40,11 @@ export default function TripDetail() {
       );
     };
 
-    // ✅ Generate mock seats if not provided by API (moved inside)
+    // âœ… Generate mock seats if not provided by API (moved inside)
     const generateMockSeats = (totalSeats: number, availableSeats: number): Seat[] => {
       const seats: Seat[] = [];
       const bookedSeats = totalSeats - availableSeats;
-      console.log(`🎯 Generating seats: ${bookedSeats}/${totalSeats} booked, ${availableSeats} available`);
+      console.log(`ðŸŽ¯ Generating seats: ${bookedSeats}/${totalSeats} booked, ${availableSeats} available`);
 
       // Create array of all seat numbers and randomize which ones are booked
       // but keep VIP seats (every 5th) more likely to be available
@@ -94,15 +94,15 @@ export default function TripDetail() {
     };
 
     try {
-      console.log("🔄 Loading trip detail for ID:", tripId);
+      console.log("ðŸ”„ Loading trip detail for ID:", tripId);
       setLoading(true);
       setError(null);
 
       const response = await tripAPI.getById(tripId);
-      console.log('✅ Trip detail loaded:', response);
+      console.log('âœ… Trip detail loaded:', response);
 
-      if (!response.success || !response.trip) {
-        throw new Error(response.message || 'Không tìm thấy chuyến xe');
+        if (!response.success || !response.trip) {
+          throw new Error(response.message || 'Không tìm thấy chuyến xe');
       }
 
   const rawTrip = response.trip as ApiTrip;
@@ -127,14 +127,14 @@ export default function TripDetail() {
 
       setTrip(uiTrip);
     } catch (error) {
-      console.error("❌ Error loading trip detail:", error);
-      setError("Không thể tải thông tin chuyến xe");
+      console.error("âŒ Error loading trip detail:", error);
+  setError("Không thể tải thông tin chuyến xe");
     } finally {
       setLoading(false);
     }
-  }, []); // ✅ Empty dependencies - không có external dependencies
+  }, []); // âœ… Empty dependencies - khÃ´ng cÃ³ external dependencies
 
-  // ✅ useEffect với proper dependency
+  // âœ… useEffect vá»›i proper dependency
   useEffect(() => {
     if (id) {
       loadTripDetail(id);
@@ -156,19 +156,19 @@ export default function TripDetail() {
 
   const handleBooking = () => {
     if (!user) {
-      alert('Vui lòng đăng nhập để đặt vé');
+      alert('Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘áº·t vÃ©');
       navigate('/login');
       return;
     }
 
     if (selectedSeats.length === 0) {
-      alert('Vui lòng chọn ít nhất một ghế');
+      alert('Vui lÃ²ng chá»n Ã­t nháº¥t má»™t gháº¿');
       return;
     }
 
-    // ✅ Use 'trip' instead of 'tripData'
+    // âœ… Use 'trip' instead of 'tripData'
     if (!trip) {
-      alert('Không thể tải thông tin chuyến xe');
+      alert('KhÃ´ng thá»ƒ táº£i thÃ´ng tin chuyáº¿n xe');
       return;
     }
 
@@ -180,9 +180,10 @@ export default function TripDetail() {
         0,
         Math.floor((new Date(t.arrivalTime).getTime() - new Date(t.departureTime).getTime()) / 60000)
       );
+
       return {
         id: t.id,
-        route: `${dep} → ${arr}`,
+        route: `${dep} -> ${arr}`,
         departureLocation: dep,
         arrivalLocation: arr,
         departureTime: t.departureTime,
@@ -217,7 +218,10 @@ export default function TripDetail() {
 
   const calculateTotalPrice = () => {
     if (!trip) return 0;
-    return selectedSeats.length * trip.basePrice;
+    return selectedSeats.reduce((sum, seat) => {
+      const multiplier = seat.priceMultiplier ?? 1;
+      return sum + trip.basePrice * multiplier;
+    }, 0);
   };
 
   const formatTime = (dateString: string) => {
@@ -251,25 +255,25 @@ export default function TripDetail() {
 
   const getBusTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      STANDARD: "Thường",
-      SEAT: "Ghế ngồi",
-      DELUXE: "Cao cấp",
+      STANDARD: "ThÆ°á»ng",
+      SEAT: "Gháº¿ ngá»“i",
+      DELUXE: "Cao cáº¥p",
       LIMOUSINE: "Limousine",
-      SLEEPER: "Giường nằm",
+      SLEEPER: "GiÆ°á»ng náº±m",
     };
     return labels[type] || type;
   };
 
   const getSeatTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      STANDARD: "Thường",
+      STANDARD: "ThÆ°á»ng",
       VIP: "VIP",
-      SLEEPER: "Giường nằm",
+      SLEEPER: "GiÆ°á»ng náº±m",
     };
     return labels[type] || type;
   };
 
-  if (loading) {
+    if (loading) {
     return (
       <div className="trip-detail-page">
         <div className="container">
@@ -282,7 +286,7 @@ export default function TripDetail() {
     );
   }
 
-  if (error || !trip) {
+    if (error || !trip) {
     return (
       <div className="trip-detail-page">
         <div className="container">
@@ -310,7 +314,7 @@ export default function TripDetail() {
             className="back-btn"
             onClick={() => navigate(-1)}
           >
-            ← Quay lại
+            â† Quay láº¡i
           </button>
           <h1>Chi tiết chuyến xe</h1>
         </div>
@@ -321,7 +325,7 @@ export default function TripDetail() {
             {/* Route Info */}
             <div className="route-info">
               <h2>{`${trip.departureLocation?.name || '—'} → ${trip.arrivalLocation?.name || '—'}`}</h2>
-              <p className="route-code">Mã chuyến: {trip.id}</p>
+              <p className="route-code">MÃ£ chuyáº¿n: {trip.id}</p>
             </div>
 
             {/* Time Info */}
@@ -330,7 +334,7 @@ export default function TripDetail() {
                 <h3>Điểm đi</h3>
                 <div className="time">{formatTime(trip.departureTime)}</div>
                 <div className="date">{formatDate(trip.departureTime)}</div>
-                <div className="location">{trip.departureLocation?.name || '—'}</div>
+                <div className="location">{trip.departureLocation?.name || 'â€”'}</div>
               </div>
 
               <div className="duration">
@@ -344,7 +348,7 @@ export default function TripDetail() {
                 <h3>Điểm đến</h3>
                 <div className="time">{formatTime(trip.arrivalTime)}</div>
                 <div className="date">{formatDate(trip.arrivalTime)}</div>
-                <div className="location">{trip.arrivalLocation?.name || '—'}</div>
+                <div className="location">{trip.arrivalLocation?.name || 'â€”'}</div>
               </div>
             </div>
 
@@ -359,7 +363,7 @@ export default function TripDetail() {
               </div>
 
               <div className="facilities">
-                <h4>Tiện ích:</h4>
+          <h4>Tiện ích:</h4>
                 <div className="facilities-list">
                   {trip.bus.facilities.map((facility, index) => (
                     <span key={index} className="facility-tag">
@@ -372,11 +376,11 @@ export default function TripDetail() {
 
             {/* Seat Selection */}
             <div className="seat-selection">
-              <h3>💺 Chọn ghế</h3>
+              <h3>🎖️ Chọn ghế</h3>
               
               {/* Seat Legend */}
               <div className="seat-legend">
-                <div className="legend-item">
+                  <div className="legend-item">
                   <span className="seat-demo available"></span>
                   <span>Trống</span>
                 </div>
@@ -392,7 +396,7 @@ export default function TripDetail() {
 
               {/* Bus Layout */}
               <div className="bus-layout">
-                <div className="bus-front">Lái xe</div>
+                <div className="bus-front">LÃ¡i xe</div>
                 <div className="seats-grid">
                   {trip.bus.seats && trip.bus.seats.length > 0 ? (
                     trip.bus.seats.map((seat) => {
@@ -407,7 +411,7 @@ export default function TripDetail() {
                           key={seat.id}
                           className={seatClass}
                           onClick={() => handleSeatSelect(seat)}
-                          title={`Ghế ${seat.seatNumber} - ${formatPrice(trip.basePrice)}`}
+                          title={`Gháº¿ ${seat.seatNumber} - ${formatPrice(trip.basePrice)}`}
                         >
                           {seat.seatNumber}
                         </div>
@@ -425,7 +429,7 @@ export default function TripDetail() {
 
           {/* Right Column - Booking Summary */}
           <div className="seat-selection-card">
-            <h3>📋 Thông tin đặt vé</h3>
+            <h3>🧾 Thông tin đặt vé</h3>
             
             <div className="booking-summary">
               <div className="summary-content">
@@ -435,7 +439,7 @@ export default function TripDetail() {
                     <div className="selected-seats">
                       {selectedSeats.map((seat) => (
                         <div key={seat.id} className="selected-seat">
-                          <span>Ghế {seat.seatNumber}</span>
+                          <span>Gháº¿ {seat.seatNumber}</span>
                           <span>({getSeatTypeLabel(seat.seatType)})</span>
                           <span>{formatPrice(trip.basePrice * (seat.priceMultiplier || 1))}</span>
                         </div>
@@ -476,3 +480,4 @@ export default function TripDetail() {
     </div>
   );
 }
+
