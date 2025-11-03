@@ -3,8 +3,11 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'ADMIN' | 'PASSENGER';
+  avatarUrl?: string;
+  // Backend supports admin, company, passenger
+  role: 'admin' | 'company' | 'passenger';
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  companyId?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

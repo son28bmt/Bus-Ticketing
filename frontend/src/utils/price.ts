@@ -1,8 +1,9 @@
 export function formatPrice(price: number): string {
+  const safe = Number.isFinite(price) ? price : 0;
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND'
-  }).format(price);
+  }).format(safe);
 }
 
 export function formatPriceShort(price: number): string {

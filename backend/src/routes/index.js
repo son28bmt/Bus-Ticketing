@@ -8,6 +8,10 @@ const bookingRoutes = require('./booking.routes');
 const adminRoutes = require('./admin.routes');
 const newsRoutes = require('./news.routes');
 const paymentRoutes = require('./payment.routes');
+const companyRoutes = require('./company.routes');
+const userRoutes = require('./user.routes');
+const locationRoutes = require('./location.routes');
+const voucherRoutes = require('./voucher.routes');
 
 console.log('🔄 Loading routes...');
 
@@ -18,6 +22,10 @@ router.use('/api/bookings', bookingRoutes);
 router.use('/api/admin', adminRoutes);
 router.use('/api/news', newsRoutes);
 router.use('/api/payment', paymentRoutes);
+router.use('/api/company', companyRoutes);
+router.use('/api/user', userRoutes);
+router.use('/api/locations', locationRoutes);
+router.use('/api/vouchers', voucherRoutes);
 
 console.log('✅ Routes loaded successfully');
 
@@ -43,6 +51,9 @@ router.get('/api', (req, res) => {
       trips: '/api/trips', 
       bookings: '/api/bookings',
       admin: '/api/admin',
+      user: '/api/user',
+      company: '/api/company',
+      locations: '/api/locations',
       news: '/api/news',
       payment: '/api/payment',
       health: '/api/health'

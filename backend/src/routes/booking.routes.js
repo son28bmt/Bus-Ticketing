@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middlewares/auth');
+const { authenticateToken, authenticateTokenOptional } = require('../middlewares/auth');
 const {
   createBooking,
   getBookings,
@@ -9,12 +9,14 @@ const {
   updateBookingStatus,
   cancelBooking,
   processPayment
-} = require('../controllers/booking.controller');
+} = require('../controllers/user/booking.controller');
 
-// ✅ Protected routes with proper patterns
+// Allow guests to create bookings (token optional)
+router.post('/', authenticateTokenOptional, createBooking);
+
+// Protected routes with proper patterns
 router.use(authenticateToken);
 
-router.post('/', createBooking);
 router.get('/', getBookings);
 router.get('/my-bookings', getBookings); // alias used by frontend
 router.get('/code/:code', getBookingByCode);

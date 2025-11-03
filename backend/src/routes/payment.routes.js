@@ -9,7 +9,7 @@ const {
   getSupportedBanks,
   getVNPayTransactions,
   getInvoice
-} = require('../controllers/payment.controller');
+} = require('../controllers/user/payment.controller');
 
 // ✅ VNPay routes
 

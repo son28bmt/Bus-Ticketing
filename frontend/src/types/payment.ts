@@ -1,4 +1,7 @@
-﻿export interface Seat {
+import type { Trip as BaseTrip, TripLocationDetails, TripRouteMeta } from './trip';
+import type { Voucher } from './voucher';
+
+export interface Seat {
   id: number;
   seatNumber: string;
   seatType: 'STANDARD' | 'VIP' | 'SLEEPER';
@@ -6,27 +9,24 @@
   priceMultiplier?: number;
 }
 
-export interface Trip {
+export interface BookingSeatItem {
   id: number;
-  route: string;
+  bookingId: number;
+  seatId: number;
+  price: number;
+  seat?: Seat;
+}
+
+export interface Trip extends Omit<BaseTrip, 'departureLocation' | 'arrivalLocation' | 'route' | 'routeMeta'> {
+  route?: string | null;
+  routeMeta?: TripRouteMeta | null;
   departureLocation: string;
   arrivalLocation: string;
-  departureTime: string;
-  arrivalTime: string;
-  basePrice: number;
-  totalSeats: number;
-  availableSeats: number;
-  status: string;
-  duration: number;
-  distance: number;
-  bus: {
-    id: number;
-    busNumber: string;
-    busType: string;
-    capacity: number;
-    facilities: string[];
-    seats?: Seat[];
-  };
+  departureLocationDetails?: TripLocationDetails | null;
+  arrivalLocationDetails?: TripLocationDetails | null;
+  duration?: number | null;
+  distance?: number | null;
+  bus: BaseTrip['bus'] & { seats?: Seat[] };
 }
 
 export interface BookingData {
@@ -38,29 +38,23 @@ export interface BookingData {
   totalPrice: number;
   paymentMethod: 'CASH' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'E_WALLET' | 'VNPAY';
   notes?: string;
+  voucherCode?: string;
+  guestNotes?: Record<string, unknown> | string;
 }
 
 export interface BookingResponse {
   success: boolean;
   message: string;
   data: {
-    booking: {
-      id: number;
-      bookingCode: string;
-      passengerName: string;
-      passengerPhone: string;
-      seatNumbers: string[];
-      totalPrice: number;
-      paymentStatus: string;
-      bookingStatus: string;
-      createdAt: string;
-    };
+    booking: UserBooking;
     payment: {
       id: number;
       paymentCode: string;
       amount: number;
+      discountAmount: number;
       paymentMethod: string;
       paymentStatus: string;
+      voucherId?: number | null;
       qrImageUrl?: string;
       vietqr?: {
         bankCode: string;
@@ -70,26 +64,15 @@ export interface BookingResponse {
         addInfo: string;
       };
     };
-    trip: {
-      id: number;
-      route: string;
-      departureLocation: string;
-      arrivalLocation: string;
-      departureTime: string;
-      arrivalTime: string;
-      availableSeats?: number;
-      bus?: {
-        id: number;
-        busNumber: string;
-        busType: string;
-        totalSeats?: number;
-      } | null;
-    };
+    trip: Trip | null;
+    voucher?: Voucher | null;
   };
 }
 
 export interface PaymentProcessData {
   transactionId: string;
+  amount?: number;
+  paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'E_WALLET' | 'VNPAY';
   paymentDetails?: Record<string, unknown>;
 }
 
@@ -100,13 +83,12 @@ export interface PaymentResponse {
     payment: {
       id: number;
       paymentCode: string;
+      amount: number;
+      discountAmount: number;
       paymentStatus: string;
       paidAt: string;
     };
-    booking: {
-      bookingCode: string;
-      paymentStatus: string;
-    };
+    booking: UserBooking;
   };
 }
 
@@ -118,6 +100,10 @@ export interface UserBooking {
   passengerEmail?: string;
   seatNumbers: string[];
   totalPrice: number;
+  discountAmount: number;
+  payableAmount?: number;
+  voucherId?: number | null;
+  voucher?: Voucher | null;
   paymentStatus: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED';
   bookingStatus: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
   paymentMethod: string;
@@ -125,17 +111,20 @@ export interface UserBooking {
   createdAt: string;
   updatedAt: string;
   trip: Trip;
+  items?: BookingSeatItem[];
   payments: Array<{
     id: number;
     paymentCode: string;
     amount: number;
+    discountAmount?: number;
+    voucherId?: number | null;
     paymentMethod: string;
     paymentStatus: string;
     paidAt?: string;
   }>;
 }
 
-// API Error interface Ä‘á»ƒ tÃ¡i sá»­ dá»¥ng
+// API Error interface để tái sử dụng
 export interface ApiError {
   response?: {
     data?: {
@@ -144,3 +133,4 @@ export interface ApiError {
   };
   message?: string;
 }
+

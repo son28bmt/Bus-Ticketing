@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { bookingAPI } from '../services/bookingAPI';
+import { bookingAPI } from '../services/booking';
 import type { BookingData, BookingResponse, PaymentProcessData, PaymentResponse } from '../types/payment';
 
 interface UsePaymentReturn {

@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   getPublishedNews,
   getNewsBySlug
-} = require('../controllers/news.controller');
+} = require('../controllers/common/news.controller');
 
 // ✅ Public news routes
 router.get('/', getPublishedNews); // GET /api/news?page=1&limit=10&category=TRAFFIC

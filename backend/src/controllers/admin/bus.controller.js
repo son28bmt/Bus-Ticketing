@@ -1,5 +1,7 @@
-const { Bus, BusCompany } = require('../../../models');
+const { Bus, BusCompany, User, Seat, sequelize } = require('../../../models');
 const { Op } = require('sequelize');
+const { ensureSeatsForBus } = require('../../utils/seat-helper');
+const { ROLES } = require('../../constants/roles');
 
 // ✅ Get buses (filtered by company for company admin)
 const getBuses = async (req, res) => {
@@ -9,9 +11,19 @@ const getBuses = async (req, res) => {
 
     const whereClause = {};
     
-    // Company admin can only see their buses
-    if (req.user.role === 'COMPANY_ADMIN') {
-      whereClause.companyId = req.user.companyId;
+    if (req.user && req.user.role === ROLES.COMPANY) {
+      let tokenCompanyId = req.user.companyId;
+      if (tokenCompanyId === undefined || tokenCompanyId === null) {
+        const dbUser = await User.findByPk(req.user.id, { attributes: ['companyId'] });
+        if (dbUser?.companyId != null) {
+          tokenCompanyId = dbUser.companyId;
+          req.user.companyId = tokenCompanyId;
+        }
+      }
+      if (tokenCompanyId === undefined || tokenCompanyId === null) {
+        return res.status(403).json({ success: false, message: 'Tai khoan nha xe khong co companyId' });
+      }
+      whereClause.companyId = tokenCompanyId;
     }
 
     if (search) {
@@ -52,13 +64,21 @@ const getBuses = async (req, res) => {
         }
       });
       
-      await Bus.create({
-        companyId: defaultCompany.id,
-        busNumber: 'BUS001',
-        busType: 'SEAT',
-        totalSeats: 45,
-        facilities: ['WiFi', 'AC'],
-        isActive: true
+      await sequelize.transaction(async (transaction) => {
+        const defaultBus = await Bus.create(
+          {
+            companyId: defaultCompany.id,
+            busNumber: 'BUS001',
+            busType: 'STANDARD',
+            totalSeats: 45,
+            capacity: 45,
+            facilities: ['WiFi', 'AC'],
+            isActive: true
+          },
+          { transaction }
+        );
+
+        await ensureSeatsForBus(Seat, defaultBus, { transaction, resetExisting: true });
       });
       
       // Re-query after seeding
@@ -102,68 +122,118 @@ const getBuses = async (req, res) => {
   }
 };
 
-// ✅ Create bus
+// Create bus
 const createBus = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
-  const { busNumber, busType, totalSeats, capacity, facilities, isActive } = req.body;
+    const { busNumber, busType, totalSeats, capacity, facilities, isActive } = req.body;
 
     if (!busNumber || !busType || !totalSeats) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Số xe, loại xe và số ghế là bắt buộc'
+        message: 'Thong tin xe khong du'
       });
     }
 
-    // Get company ID or create default company
-    let companyId = req.user.role === 'COMPANY_ADMIN' 
-      ? req.user.companyId 
-      : req.body.companyId;
+    // Determine companyId (Company admins must use their companyId; global admins may supply or get default)
+    let companyId;
+    if (req.user && req.user.role === ROLES.COMPANY) {
+      let tokenCompanyId = req.user.companyId;
+      if (tokenCompanyId === undefined || tokenCompanyId === null) {
+        const dbUser = await User.findByPk(req.user.id, { attributes: ['companyId'] });
+        if (dbUser?.companyId != null) {
+          tokenCompanyId = dbUser.companyId;
+          req.user.companyId = tokenCompanyId;
+        }
+      }
+      if (tokenCompanyId === undefined || tokenCompanyId === null) {
+        await transaction.rollback();
+        return res.status(403).json({ success: false, message: 'Tai khoan khong co companyId' });
+      }
+      companyId = tokenCompanyId;
+    } else {
+      companyId = req.body.companyId;
+    }
 
+    companyId = companyId != null ? Number(companyId) : null;
+    if (Number.isNaN(companyId)) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'CompanyId khong hop le' });
+    }
+
+    let resolvedCompany = null;
     if (!companyId) {
-      // Create or find default company for global admins
+      if (req.user && req.user.role === ROLES.COMPANY) {
+        await transaction.rollback();
+        return res.status(403).json({ success: false, message: 'Khong the xac dinh companyId' });
+      }
       const [defaultCompany] = await BusCompany.findOrCreate({
         where: { code: 'DEFAULT' },
         defaults: {
-          name: 'Nhà xe mặc định',
+          name: 'Default Company',
           code: 'DEFAULT',
           phone: '0123456789',
           email: 'admin@default.com',
-          address: 'Địa chỉ mặc định',
+          address: 'Default address',
           isActive: true
-        }
+        },
+        transaction
       });
+      resolvedCompany = defaultCompany;
       companyId = defaultCompany.id;
+    } else {
+      resolvedCompany = await BusCompany.findByPk(companyId, { transaction });
+      if (!resolvedCompany) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Nha xe khong ton tai' });
+      }
     }
 
-    // Check if bus number exists in this company
-    const existingBus = await Bus.findOne({ 
-      where: { 
+    if (req.user && req.user.role === ROLES.COMPANY) {
+      const tokenCompanyId = Number(req.user.companyId);
+      if (Number.isNaN(tokenCompanyId) || resolvedCompany.id !== tokenCompanyId) {
+        await transaction.rollback();
+        return res.status(403).json({ success: false, message: 'Khong the tao xe cho nha xe khac' });
+      }
+    }
+
+    const existingBus = await Bus.findOne({
+      where: {
         busNumber,
         companyId
-      } 
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE
     });
-    
+
     if (existingBus) {
+      await transaction.rollback();
       return res.status(409).json({
         success: false,
-        message: 'Số xe đã tồn tại trong nhà xe này'
+        message: 'So xe da ton tai'
       });
     }
 
-    const bus = await Bus.create({
-      companyId,
-      busNumber,
-      busType,
-      totalSeats: parseInt(totalSeats),
-      capacity: capacity ? parseInt(capacity) : parseInt(totalSeats), // Use capacity or fallback to totalSeats
-      facilities: Array.isArray(facilities) ? facilities : [],
-      isActive: typeof isActive === 'boolean' ? isActive : true
-    });
-    
-    console.log('✅ Bus created successfully:', bus.busNumber);
-    console.log('🔄 Restarting server to test capacity field fix...');
+    const bus = await Bus.create(
+      {
+        companyId,
+        busNumber,
+        busType,
+        totalSeats: parseInt(totalSeats, 10),
+        capacity: capacity ? parseInt(capacity, 10) : parseInt(totalSeats, 10),
+        facilities: Array.isArray(facilities) ? facilities : [],
+        isActive: typeof isActive === 'boolean' ? isActive : true
+      },
+      { transaction }
+    );
 
-    // Include company info in response
+    await ensureSeatsForBus(Seat, bus, { transaction, resetExisting: true });
+
+    console.log('Bus created:', bus.busNumber);
+
+    await transaction.commit();
+
     const busWithCompany = await Bus.findByPk(bus.id, {
       include: [
         {
@@ -176,16 +246,17 @@ const createBus = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Thêm xe thành công',
+      message: 'Them xe thanh cong',
       data: busWithCompany
     });
-    
-    console.log(`✅ Bus created: ${bus.busNumber} for company ${companyId}`);
+
+    console.log('Bus created for company ' + companyId);
   } catch (error) {
-    console.error('❌ Error creating bus:', error);
+    await transaction.rollback();
+    console.error('Error creating bus:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi thêm xe',
+      message: 'Loi them xe',
       error: error.message
     });
   }
@@ -196,44 +267,100 @@ module.exports = {
   createBus,
   // ✅ Update bus details
   updateBus: async (req, res) => {
+    const transaction = await sequelize.transaction();
     try {
-  const { id } = req.params;
-  const { busNumber, busType, totalSeats, facilities, isActive } = req.body;
+      const { id } = req.params;
+      const { busNumber, busType, totalSeats, capacity, facilities, isActive } = req.body;
 
       const where = { id };
-      if (req.user.role === 'COMPANY_ADMIN') {
+      if (
+        req.user &&
+        req.user.role === ROLES.COMPANY &&
+        req.user.companyId !== undefined &&
+        req.user.companyId !== null
+      ) {
         where.companyId = req.user.companyId;
       }
 
-      const bus = await Bus.findOne({ where });
+      const bus = await Bus.findOne({ where, transaction, lock: transaction.LOCK.UPDATE });
       if (!bus) {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy xe' });
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: 'Khong tim thay xe' });
       }
 
-      // Ensure unique busNumber within company if changed
       if (busNumber && busNumber !== bus.busNumber) {
-        const exists = await Bus.findOne({ where: { busNumber, companyId: bus.companyId, id: { [Op.ne]: bus.id } } });
+        const exists = await Bus.findOne({
+          where: { busNumber, companyId: bus.companyId, id: { [Op.ne]: bus.id } }
+        });
         if (exists) {
-          return res.status(409).json({ success: false, message: 'Số xe đã tồn tại trong nhà xe này' });
+          await transaction.rollback();
+          return res.status(409).json({ success: false, message: 'So xe da ton tai trong nha xe' });
         }
       }
 
-      await bus.update({
-        busNumber: busNumber ?? bus.busNumber,
-        busType: busType ?? bus.busType,
-        totalSeats: typeof totalSeats === 'number' ? totalSeats : bus.totalSeats,
-        facilities: Array.isArray(facilities) ? facilities : (facilities ? bus.facilities : bus.facilities),
-        isActive: typeof isActive === 'boolean' ? isActive : bus.isActive
-      });
+      const updates = {};
+
+      if (busNumber) {
+        updates.busNumber = busNumber;
+      }
+
+      if (busType) {
+        updates.busType = busType;
+      }
+
+      let seatsChanged = false;
+      if (totalSeats !== undefined && totalSeats !== null) {
+        const numericSeats = Number.parseInt(totalSeats, 10);
+        if (Number.isNaN(numericSeats) || numericSeats <= 0) {
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Tong so ghe khong hop le' });
+        }
+        updates.totalSeats = numericSeats;
+        seatsChanged = true;
+      }
+
+      if (capacity !== undefined && capacity !== null) {
+        const numericCapacity = Number.parseInt(capacity, 10);
+        if (Number.isNaN(numericCapacity) || numericCapacity <= 0) {
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Suc chua khong hop le' });
+        }
+        updates.capacity = numericCapacity;
+      } else if (seatsChanged) {
+        updates.capacity = Number.parseInt(totalSeats, 10);
+      }
+
+      if (facilities !== undefined) {
+        if (Array.isArray(facilities)) {
+          updates.facilities = facilities;
+        } else if (typeof facilities === 'string') {
+          updates.facilities = facilities
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      }
+
+      if (typeof isActive === 'boolean') {
+        updates.isActive = isActive;
+      }
+
+      await bus.update(updates, { transaction });
+      await bus.reload({ transaction });
+
+      await ensureSeatsForBus(Seat, bus, { transaction });
+
+      await transaction.commit();
 
       const busWithCompany = await Bus.findByPk(bus.id, {
         include: [{ model: BusCompany, as: 'company', attributes: ['id', 'name', 'code'] }]
       });
 
-      return res.json({ success: true, message: 'Cập nhật xe thành công', data: busWithCompany });
+      return res.json({ success: true, message: 'Cap nhat xe thanh cong', data: busWithCompany });
     } catch (error) {
-      console.error('❌ Error updating bus:', error);
-      return res.status(500).json({ success: false, message: 'Lỗi cập nhật xe', error: error.message });
+      await transaction.rollback();
+      console.error('Error updating bus:', error);
+      return res.status(500).json({ success: false, message: 'Loi cap nhat xe', error: error.message });
     }
   },
 
@@ -242,7 +369,7 @@ module.exports = {
     try {
       const { id } = req.params;
       const where = { id };
-      if (req.user.role === 'COMPANY_ADMIN') {
+      if (req.user && req.user.role === ROLES.COMPANY && req.user.companyId !== undefined && req.user.companyId !== null) {
         where.companyId = req.user.companyId;
       }
 
@@ -259,3 +386,7 @@ module.exports = {
     }
   }
 };
+
+
+
+

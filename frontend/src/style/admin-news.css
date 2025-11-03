@@ -1,5 +1,6 @@
 /* Admin News Management Styles */
 .admin-news-page {
+    max-width: 1200px;
     padding: 1.5rem;
     background-color: #f8fafc;
     min-height: 100vh;
@@ -169,12 +170,13 @@
 
 /* Table */
 .admin-news-table-container {
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .admin-news-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .admin-news-table-header {
@@ -182,13 +184,15 @@
 }
 
 .admin-news-table-th {
-    padding: 1rem 1.5rem;
+    padding: 0.875rem 1rem;
     text-align: left;
     font-size: 0.75rem;
     font-weight: 600;
     color: #718096;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .admin-news-table-body {
@@ -206,29 +210,38 @@
 }
 
 .admin-news-table-td {
-    padding: -1rem 0.5rem;
+    padding: 1rem 0.75rem;
     vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-news-table-td:last-child {
+    white-space: nowrap;
 }
 
 /* Title Column */
 .admin-news-title-cell {
-    margin: 1rem;
     display: flex;
     align-items: flex-start;
+    gap: 0.75rem;
+    width: 100%;
+    overflow: hidden;
 }
 
 .admin-news-highlight-star {
     color: #f6e05e;
-    margin-right: 0.5rem;
     margin-top: 0.125rem;
 }
 
 .admin-news-title-content {
     flex: 1;
+    min-width: 0;
 }
 
 .admin-news-item-title {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
+    text-decoration: none;
     font-weight: 600;
     color: #1a202c;
     margin-bottom: 0.25rem;
@@ -237,16 +250,19 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-word;
 }
 
 .admin-news-item-summary {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: #718096;
     line-height: 1.4;
+    margin-top: 0.25rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-word;
 }
 
 /* Status Badges */
@@ -281,6 +297,47 @@
     
     background-color: #f7fafc;
     color: #718096;
+}
+
+.admin-news-badge.company {
+    background-color: #f1f5f9;
+    color: #1f2937;
+}
+
+.admin-news-badge.company.neutral {
+    background-color: #edf2f7;
+    color: #4a5568;
+}
+
+.admin-news-tags-cell {
+    white-space: normal;
+    overflow: visible;
+}
+
+.admin-news-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    max-width: 100%;
+}
+
+.admin-news-tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    background-color: #edf2f7;
+    color: #2d3748;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-news-tag.empty {
+    background-color: transparent;
+    border: 1px dashed #cbd5e0;
+    color: #a0aec0;
 }
 
 /* Actions */

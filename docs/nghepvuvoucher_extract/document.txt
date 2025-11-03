@@ -1,0 +1,352 @@
+﻿Tá»”NG Há»¢P NGHIá»†P Vá»¤ â€“ MODULE VOUCHER & KHUYáº¾N MÃƒI
+ðŸŽ¯
+ 1. Má»¥c tiÃªu chá»©c nÄƒng
+Há»‡ thá»‘ng voucher Ä‘Æ°á»£c thiáº¿t káº¿ Ä‘á»ƒ:
+Há»— trá»£ 
+Admin
+ vÃ  
+NhÃ  xe (Company)
+ tung ra cÃ¡c chÆ°Æ¡ng trÃ¬nh khuyáº¿n mÃ£i.
+Cho phÃ©p 
+ngÆ°á»i dÃ¹ng (Passenger)
+ lÆ°u mÃ£ voucher vÃ o kho cÃ¡ nhÃ¢n hoáº·c nháº­p mÃ£ trá»±c tiáº¿p khi thanh toÃ¡n.
+Äáº£m báº£o quÃ¡ trÃ¬nh quáº£n lÃ½, theo dÃµi vÃ  sá»­ dá»¥ng mÃ£ giáº£m giÃ¡ minh báº¡ch, Ä‘Ãºng pháº¡m vi, vÃ  trÃ¡nh trÃ¹ng láº·p.
+ðŸ§± 2. Cáº¥u trÃºc & Má»‘i quan há»‡
+CÃ¡c báº£ng chÃ­nh
+Vouchers
+TrÆ°á»ng
+Kiá»ƒu dá»¯ liá»‡u
+MÃ´ táº£
+id
+PK
+MÃ£ Ä‘á»‹nh danh voucher
+code
+string (unique)
+MÃ£ voucher (VD: 
+TET2025
+)
+description
+text
+MÃ´ táº£ chÆ°Æ¡ng trÃ¬nh
+discountType
+ENUM(
+'FIXED', 'PERCENT')
+Loáº¡i giáº£m giÃ¡ (theo sá»‘ tiá»n hoáº·c %)
+discountValue
+decimal
+GiÃ¡ trá»‹ giáº£m
+maxDiscount
+decimal, nullable
+Giá»›i háº¡n tá»‘i Ä‘a (cho loáº¡i %)
+minOrderValue
+decimal, nullable
+GiÃ¡ trá»‹ Ä‘Æ¡n tá»‘i thiá»ƒu Ä‘Æ°á»£c Ã¡p dá»¥ng
+usageLimit
+int
+Giá»›i háº¡n tá»•ng lÆ°á»£t dÃ¹ng
+usagePerUser
+int
+Giá»›i háº¡n má»—i user
+usedCount
+int
+Sá»‘ lÆ°á»£t Ä‘Ã£ dÃ¹ng
+startDate
+datetime
+NgÃ y báº¯t Ä‘áº§u
+endDate
+datetime
+NgÃ y káº¿t thÃºc
+companyId
+FK (nullable)
+Null = voucher toÃ n há»‡ thá»‘ng, cÃ³ giÃ¡ trá»‹ = voucher riÃªng cá»§a nhÃ  xe
+isActive
+boolean
+Tráº¡ng thÃ¡i hoáº¡t Ä‘á»™ng
+UserVouchers
+LÆ°u láº¡i cÃ¡c mÃ£ voucher mÃ  ngÆ°á»i dÃ¹ng Ä‘Ã£ â€œLÆ°u vÃ o khoâ€.
+TrÆ°á»ng
+Kiá»ƒu
+MÃ´ táº£
+id
+PK
+userId
+FK
+NgÆ°á»i dÃ¹ng lÆ°u voucher
+voucherId
+FK
+Voucher Ä‘Ã£ lÆ°u
+savedAt
+datetime
+NgÃ y lÆ°u
+isUsed
+boolean
+ÄÃ£ sá»­ dá»¥ng hay chÆ°a
+VoucherUsage
+Ghi nháº­n má»—i láº§n voucher Ä‘Æ°á»£c sá»­ dá»¥ng trong quÃ¡ trÃ¬nh Ä‘áº·t vÃ©.
+TrÆ°á»ng
+Kiá»ƒu
+MÃ´ táº£
+id
+PK
+voucherId
+FK
+MÃ£ voucher
+userId
+FK
+NgÆ°á»i dÃ¹ng (nullable náº¿u khÃ¡ch vÃ£ng lai)
+bookingId
+FK
+ÄÆ¡n Ä‘áº·t vÃ© tÆ°Æ¡ng á»©ng
+usedAt
+datetime
+Thá»i Ä‘iá»ƒm sá»­ dá»¥ng
+News (BÃ i khuyáº¿n mÃ£i)
+TrÆ°á»ng
+Kiá»ƒu
+MÃ´ táº£
+id
+PK
+title
+string
+TiÃªu Ä‘á» bÃ i viáº¿t
+content
+text
+Ná»™i dung
+voucherId
+FK (nullable)
+MÃ£ voucher Ä‘Æ°á»£c Ä‘Ã­nh kÃ¨m
+companyId
+FK (nullable)
+NhÃ  xe Ä‘Äƒng bÃ i
+tag
+string
+â€œKhuyáº¿n mÃ£iâ€, â€œTin tá»©câ€, â€œThÃ´ng bÃ¡oâ€
+Quan há»‡
+Company (
+1)â”€
+â”€â”€(n) Voucher
+Voucher (
+1)â”€
+â”€â”€(n) News
+User (
+1)â”€
+â”€â”€(n) UserVoucher
+Voucher (
+1)â”€
+â”€â”€(n) VoucherUsage
+Booking (
+1)â”€
+â”€â”€(1) VoucherUsage
+âš™ï¸
+ 3. Nghiá»‡p vá»¥ & Quy trÃ¬nh hoáº¡t Ä‘á»™ng
+ðŸšŒ
+ 1. Admin / Company táº¡o chÆ°Æ¡ng trÃ¬nh khuyáº¿n mÃ£i
+Truy cáº­p dashboard â†’ Chá»n â€œTin tá»©c / Khuyáº¿n mÃ£iâ€.
+Viáº¿t bÃ i, chá»n hoáº·c táº¡o mÃ£ voucher Ä‘Ã­nh kÃ¨m.
+Há»‡ thá»‘ng lÆ°u record trong 
+News
+ kÃ¨m 
+voucherId
+.
+ðŸ‘¤
+ 2. NgÆ°á»i dÃ¹ng xem & lÆ°u mÃ£
+Truy cáº­p má»¥c â€œKhuyáº¿n mÃ£iâ€.
+Tháº¥y bÃ i cÃ³ mÃ£ 
+SUMMER20
+, cÃ³ nÃºt:
+ðŸ”˜
+ 
+LÆ°u mÃ£
+ â†’ lÆ°u vÃ o 
+UserVouchers
+.
+ðŸ“‹
+ 
+Copy mÃ£
+ â†’ chá»‰ sao chÃ©p Ä‘á»ƒ nháº­p tay khi thanh toÃ¡n.
+ðŸ’³
+ 3. Thanh toÃ¡n Ã¡p dá»¥ng voucher
+á»ž trang thanh toÃ¡n 
+/payment
+:
+Há»‡ thá»‘ng gá»i 
+GET /api/user/vouchers/valid
+.
+NgÆ°á»i dÃ¹ng chá»n 1 mÃ£ há»£p lá»‡.
+Backend kiá»ƒm tra Ä‘iá»u kiá»‡n:
+Háº¡n dÃ¹ng, usageLimit, usagePerUser
+companyId trÃ¹ng vá»›i 
+trip.companyId
+tá»•ng giÃ¡ â‰¥ minOrderValue
+Náº¿u há»£p lá»‡ â†’ tÃ­nh giáº£m giÃ¡:
+discount = 
+voucher.discountType
+ === 'FIXED'
+  ? 
+voucher.discountValue
+  : 
+Math.min(
+(total * voucher.discountValue / 100), voucher.maxDiscount);
+LÆ°u 
+booking.voucherId
+, táº¡o record 
+VoucherUsage
+.
+ðŸ“¦
+ 4. Theo dÃµi & bÃ¡o cÃ¡o
+Admin/Company xem sá»‘ lÆ°á»£t dÃ¹ng voucher.
+User xem láº¡i voucher Ä‘Ã£ dÃ¹ng, cÃ²n háº¡n, háº¿t háº¡n trong 
+Kho Voucher
+.
+ðŸ§­ 4. API thiáº¿t káº¿
+PhÆ°Æ¡ng thá»©c
+Endpoint
+MÃ´ táº£
+Quyá»n
+GET
+/api/vouchers
+Láº¥y danh sÃ¡ch voucher (admin/company)
+Admin/Company
+POST
+/api/vouchers
+Táº¡o voucher má»›i
+Admin/Company
+PUT
+/api/vouchers/:id
+Cáº­p nháº­t voucher
+Admin/Company
+DELETE
+/api/vouchers/:id
+XoÃ¡ voucher
+Admin/Company
+GET
+/api/vouchers/available?tripId=123
+Láº¥y danh sÃ¡ch voucher há»£p lá»‡ Ä‘á»ƒ hiá»ƒn thá»‹ khi thanh toÃ¡n
+User
+POST
+/api/user/vouchers
+/:voucherId
+/save
+LÆ°u mÃ£ vÃ o kho cÃ¡ nhÃ¢n
+User
+GET
+/api/user/vouchers
+Xem â€œKho voucher cá»§a tÃ´iâ€
+User
+DELETE
+/api/user/vouchers/:id
+Bá» lÆ°u mÃ£
+User
+POST
+/api/bookings
+Táº¡o booking, cÃ³ thá»ƒ kÃ¨m 
+{voucherCode}
+User
+ðŸªŸ 5. Giao diá»‡n ngÆ°á»i dÃ¹ng (Frontend)
+ðŸ”¹
+ Trang BÃ i khuyáº¿n mÃ£i (News/Promotions)
+Hiá»ƒn thá»‹ danh sÃ¡ch bÃ i viáº¿t cÃ³ tag â€œKhuyáº¿n mÃ£iâ€.
+Má»—i bÃ i: tiÃªu Ä‘á», ná»™i dung, mÃ£ voucher, nÃºt â€œLÆ°u mÃ£â€ hoáº·c â€œCopyâ€.
+ðŸ”¹
+ Trang Kho Voucher cá»§a tÃ´i (MyVouchers)
+Hiá»ƒn thá»‹ danh sÃ¡ch mÃ£ Ä‘Ã£ lÆ°u tá»« 
+UserVouchers
+.
+PhÃ¢n loáº¡i:
+âœ…
+ CÃ²n háº¡n â€” 
+ðŸ”¶
+ Sáº¯p háº¿t háº¡n 
+â€” 
+âŒ
+ Háº¿t
+ háº¡n â€” 
+ðŸ
+ ÄÃ£ dÃ¹ng
+NÃºt â€œDÃ¹ng ngayâ€ â†’ chuyá»ƒn sang trang Ä‘áº·t vÃ©.
+CÃ³ thá»ƒ lá»c, sáº¯p xáº¿p theo ngÃ y háº¿t háº¡n hoáº·c tráº¡ng thÃ¡i.
+ðŸ”¹
+ Trang Thanh toÃ¡n (Payment)
+Dropdown hiá»ƒn thá»‹ cÃ¡c voucher há»£p lá»‡ (
+/vouchers/available
+).
+Tá»± Ä‘á»™ng tÃ­nh láº¡i tá»•ng tiá»n sau khi Ã¡p dá»¥ng mÃ£.
+ðŸ§® 6. Quy táº¯c Ã¡p dá»¥ng Voucher
+Quy táº¯c
+Diá»…n giáº£i
+âœ…
+ Chá»‰ Ã¡p dá»¥ng 1 voucher cho 1 booking
+TrÃ¡nh chá»“ng mÃ£
+âœ…
+ Voucher cÃ³ thá»ƒ lÃ  toÃ n há»‡ thá»‘ng hoáº·c thuá»™c cÃ´ng ty cá»¥ thá»ƒ
+PhÃ¢n biá»‡t pháº¡m vi
+âœ…
+ Voucher háº¿t háº¡n hoáº·c vÆ°á»£t usageLimit â†’ vÃ´ hiá»‡u
+âœ…
+ Má»—i user chá»‰ Ä‘Æ°á»£c dÃ¹ng 
+usagePerUser
+ láº§n
+âœ…
+ Voucher chá»‰ Ã¡p dá»¥ng náº¿u 
+totalPrice >= minOrderValue
+âœ…
+ Guest (khÃ¡ch vÃ£ng lai) chá»‰ Ä‘Æ°á»£c nháº­p mÃ£ thá»§ cÃ´ng
+KhÃ´ng thá»ƒ â€œlÆ°u mÃ£â€
+ðŸ§ 
+ 7. Lá»£i Ã­ch & GiÃ¡ trá»‹ há»‡ thá»‘ng
+Äá»‘i tÆ°á»£ng
+Lá»£i Ã­ch
+NgÆ°á»i dÃ¹ng
+Dá»… dÃ ng lÆ°u vÃ  quáº£n lÃ½ mÃ£ giáº£m giÃ¡, tÄƒng tráº£i nghiá»‡m cÃ¡ nhÃ¢n
+NhÃ  xe
+TÄƒng hiá»‡u quáº£ marketing, giá»¯ chÃ¢n khÃ¡ch hÃ ng
+Admin
+Kiá»ƒm soÃ¡t toÃ n bá»™ voucher, táº¡o chiáº¿n dá»‹ch chung hoáº·c riÃªng
+Há»‡ thá»‘ng
+LiÃªn káº¿t tin tá»©c â€“ khuyáº¿n mÃ£i â€“ Ä‘áº·t vÃ© thÃ nh chuá»—i tráº£i nghiá»‡m thá»‘ng nháº¥t
+ðŸ“Š
+ 8. HÆ°á»›ng má»Ÿ rá»™ng tÆ°Æ¡ng lai
+Ã tÆ°á»Ÿng
+MÃ´ táº£
+ðŸŽ¯
+ Gá»£i Ã½ voucher tá»± Ä‘á»™ng (AI Suggestion)
+Chatbot AI Ä‘á» xuáº¥t mÃ£ phÃ¹ há»£p vá»›i tuyáº¿n & hÃ nh trÃ¬nh
+ðŸ†
+ Loyalty voucher
+PhÃ¡t mÃ£ tá»± Ä‘á»™ng cho khÃ¡ch thÃ¢n thiáº¿t hoáº·c hoÃ n tiá»n
+ðŸ’¬
+ Chatbox há»— trá»£ há»i voucher
+â€œTuyáº¿n ÄÃ  Láº¡t cÃ³ voucher nÃ o khÃ´ng?â€
+ðŸ“±
+ Push notification
+Gá»­i thÃ´ng bÃ¡o â€œVoucher cá»§a báº¡n sáº¯p háº¿t háº¡n!â€
+ðŸ”—
+ Voucher combo
+Káº¿t há»£p nhiá»u tuyáº¿n hoáº·c dá»‹ch vá»¥ khÃ¡c (xe + khÃ¡ch sáº¡n)
+âœ…
+ 9. TÃ³m táº¯t logic xá»­ lÃ½ chÃ­nh (pseudo-flow)
+sequenceDiagram
+User->>Frontend: Xem bÃ i khuyáº¿n mÃ£i
+Frontend->>Backend: POST /user/vouchers
+/:voucherId
+/save
+Backend-->>DB: insert into UserVouchers
+Backend-->>Frontend: OK
+User->>Frontend: Chá»n chuyáº¿n & thanh toÃ¡n
+Frontend->>Backend: POST /bookings (kÃ¨m voucherCode)
+Backend->>VoucherService: 
+validate(
+voucherCode, userId, companyId, totalPrice)
+VoucherService-->>Backend: discountAmount, voucherId
+Backend-->>DB: create Booking + VoucherUsage
+Backend-->>Frontend: return booking + applied discount
+ðŸ§© Káº¿t luáº­n
+TÃ­nh nÄƒng 
+Voucher & BÃ i khuyáº¿n mÃ£i
+ Ä‘Æ°á»£c thiáº¿t káº¿ thá»‘ng nháº¥t, phÃ¢n táº§ng rÃµ rÃ ng,
+vá»«a phá»¥c vá»¥ marketing â€“ chÄƒm sÃ³c khÃ¡ch hÃ ng, vá»«a kiá»ƒm soÃ¡t tá»‘t vá» ká»¹ thuáº­t.
+NgÆ°á»i dÃ¹ng cÃ³ tráº£i nghiá»‡m tá»± nhiÃªn: 
+Xem khuyáº¿n mÃ£i â†’ LÆ°u mÃ£ â†’ DÃ¹ng khi Ä‘áº·t vÃ© â†’ Theo dÃµi trong kho cÃ¡ nhÃ¢n
+.
+NhÃ  xe & Admin cÃ³ thá»ƒ quáº£n lÃ½ hiá»‡u quáº£ cÃ¡c chiáº¿n dá»‹ch vÃ  doanh thu giáº£m giÃ¡.
+Há»‡ thá»‘ng sáºµn sÃ ng má»Ÿ rá»™ng AI gá»£i Ã½ voucher hoáº·c automation khuyáº¿n mÃ£i sau nÃ y.

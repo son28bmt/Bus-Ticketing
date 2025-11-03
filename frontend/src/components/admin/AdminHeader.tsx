@@ -1,6 +1,7 @@
 import { useUserStore } from '../../store/user';
 import { useNavigate } from 'react-router-dom';
-import './Style/AdminHeader.css';
+import './style/AdminHeader.css';
+// import { ROLES } from './../../constants/roles';
 
 export default function AdminHeader() {
   const { user, logout } = useUserStore();
@@ -21,7 +22,7 @@ export default function AdminHeader() {
             <span className="user-avatar">👨‍💼</span>
             <div className="user-details">
               <span className="user-name">{user?.name}</span>
-              <span className="user-role">Quản trị viên</span>
+              <span className="user-role">{user?.role}</span>
             </div>
           </div>
           

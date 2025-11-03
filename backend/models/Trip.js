@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'busId',
         as: 'bus'
       });
+
+      Trip.belongsTo(models.Route, {
+        foreignKey: 'routeId',
+        as: 'route'
+      });
       
       // Trip có điểm đi và điểm đến
       Trip.belongsTo(models.Location, {
@@ -32,6 +37,13 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'tripId',
         as: 'bookings'
       });
+
+      if (models.SeatLock) {
+        Trip.hasMany(models.SeatLock, {
+          foreignKey: 'tripId',
+          as: 'seatLocks'
+        });
+      }
     }
   }
 
@@ -55,6 +67,14 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       references: {
         model: 'buses',
+        key: 'id'
+      }
+    },
+    routeId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'routes',
         key: 'id'
       }
     },

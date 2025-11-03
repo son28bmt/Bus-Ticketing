@@ -1,4 +1,4 @@
-const { syncDatabase } = require('./src/config/db.js');
+const { syncDatabase } = require('./config/db.js');
 const seedData = require('./src/seeders/demo-data.js');
 
 const runSeed = async () => {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authAPI } from '../services/api';
+import { authAPI } from '../services/auth';
 import type { User, LoginResponse, RegisterResponse, RegisterUserData, ApiError } from '../types/user';
 
 interface UserState {
@@ -14,6 +14,9 @@ interface UserState {
   logout: () => void;
   initializeUser: () => void;
   clearError: () => void;
+  updateProfile: (data: { name?: string; phone?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  setAvatar: (avatarUrl: string) => void;
 }
 
 export const useUserStore = create<UserState>()(
@@ -126,6 +129,50 @@ export const useUserStore = create<UserState>()(
       clearError: () => {
         set({ error: null });
       },
+
+      updateProfile: async (data: { name?: string; phone?: string }) => {
+        try {
+          set({ isLoading: true, error: null });
+          const res = await authAPI.updateProfile(data);
+          if (res.success && res.user) {
+            const updated = res.user;
+            set((state) => ({ user: { ...state.user!, ...updated }, isLoading: false }));
+            localStorage.setItem('user', JSON.stringify({ ...get().user, ...updated }));
+          } else {
+            set({ isLoading: false, error: res.message || 'Cập nhật thất bại' });
+          }
+        } catch (error: unknown) {
+          const apiError = error as ApiError;
+          set({ isLoading: false, error: apiError.response?.data?.message || apiError.message || 'Cập nhật thất bại' });
+          throw error;
+        }
+      },
+
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          const res = await authAPI.changePassword({ currentPassword, newPassword });
+          if (!res.success) {
+            set({ isLoading: false, error: res.message || 'Đổi mật khẩu thất bại' });
+            throw new Error(res.message || 'Đổi mật khẩu thất bại');
+          }
+          set({ isLoading: false });
+        } catch (error: unknown) {
+          const apiError = error as ApiError;
+          set({ isLoading: false, error: apiError.response?.data?.message || apiError.message || 'Đổi mật khẩu thất bại' });
+          throw error;
+        }
+      },
+
+      setAvatar: (avatarUrl: string) => {
+        set((state) => {
+          const updated = state.user ? { ...state.user, avatarUrl } : null;
+          if (updated) {
+            localStorage.setItem('user', JSON.stringify(updated));
+          }
+          return { user: updated } as Partial<UserState> as UserState;
+        });
+      },
     }),
     {
       name: 'user-store',
@@ -152,9 +199,16 @@ function isValidUser(obj: unknown): obj is User {
     typeof (obj as Record<string, unknown>).name === 'string' &&
     typeof (obj as Record<string, unknown>).email === 'string' &&
     typeof (obj as Record<string, unknown>).phone === 'string' &&
-    ['ADMIN', 'PASSENGER'].includes((obj as Record<string, unknown>).role as string) &&
-    ['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes((obj as Record<string, unknown>).status as string)
+  ['admin', 'company', 'passenger'].includes(((obj as Record<string, unknown>).role as string).toLowerCase()) &&
+    ['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes((obj as Record<string, unknown>).status as string) &&
+    (
+      !('companyId' in obj) ||
+      (obj as Record<string, unknown>).companyId === null ||
+      typeof (obj as Record<string, unknown>).companyId === 'number'
+    )
   );
 }
-
+export default useUserStore;
 export type { User };
+
+

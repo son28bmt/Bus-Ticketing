@@ -15,6 +15,27 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         as: 'bookings'
       });
+
+      if (models.CompanyUser) {
+        User.hasMany(models.CompanyUser, {
+          foreignKey: 'userId',
+          as: 'companyMemberships'
+        });
+      }
+
+      if (models.SeatLock) {
+        User.hasMany(models.SeatLock, {
+          foreignKey: 'userId',
+          as: 'seatLocks'
+        });
+      }
+
+      if (models.UserVoucher) {
+        User.hasMany(models.UserVoucher, {
+          foreignKey: 'userId',
+          as: 'voucherWallet'
+        });
+      }
     }
   }
 
@@ -40,8 +61,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'PASSENGER'),
-      defaultValue: 'PASSENGER'
+      type: DataTypes.ENUM('admin', 'company', 'passenger'),
+      allowNull: false,
+      defaultValue: 'passenger'
     },
     companyId: {
       type: DataTypes.INTEGER,

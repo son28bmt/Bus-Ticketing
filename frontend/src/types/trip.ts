@@ -13,6 +13,15 @@ export interface BusCompanyRef {
   code: string;
 }
 
+export interface TripSeat {
+  id: number | null;
+  seatNumber: string;
+  seatType: 'STANDARD' | 'VIP' | 'SLEEPER';
+  priceMultiplier?: number;
+  isActive?: boolean;
+  isBooked?: boolean;
+}
+
 export interface Bus {
   id: number;
   busNumber: string;
@@ -21,6 +30,23 @@ export interface Bus {
   totalSeats?: number;
   facilities: string[];
   company?: BusCompanyRef;
+  seats?: TripSeat[];
+}
+
+// export interface TripLocationDetails extends Location {}
+export interface TripLocationDetails  {
+  id: number;
+  name: string;
+  province: string;
+}
+
+export interface TripRouteMeta {
+  id?: number;
+  fromLocationId: number;
+  toLocationId: number;
+  distanceKm?: number;
+  basePrice?: number;
+  durationMin?: number;
 }
 
 export interface Trip {
@@ -32,10 +58,23 @@ export interface Trip {
   availableSeats: number;
   status: string; // e.g., 'SCHEDULED' | 'CANCELLED'
   bus: Bus;
-  departureLocation?: Location;
-  arrivalLocation?: Location;
+  departureLocation: {
+    id: number;
+    name: string;
+    province: string;
+  };
+  arrivalLocation: {
+    id: number;
+    name: string;
+    province: string;
+  };
+  departureLocationDetails?: TripLocationDetails | null;
+  arrivalLocationDetails?: TripLocationDetails | null;
+  route?: string | null;
+  routeMeta?: TripRouteMeta | null;
   company?: { id: number; name: string };
   isAvailable?: boolean;
+  bookedSeatNumbers?: string[];
 }
 
 export interface TripSearchParams {

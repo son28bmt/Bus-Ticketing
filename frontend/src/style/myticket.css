@@ -1,0 +1,18 @@
+/* src/style/mytickets-bootstrap.css */
+.ticket-card {
+  border-radius: 1rem !important;
+  transition: all 0.3s ease;
+}
+
+.ticket-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.12) !important;
+}
+
+.badge {
+  min-width: 100px;
+}
+
+.btn {
+  transition: all 0.3s ease;
+}

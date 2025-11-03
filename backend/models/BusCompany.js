@@ -21,6 +21,37 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'companyId',
         as: 'admins'
       });
+
+      BusCompany.hasMany(models.Booking, {
+        foreignKey: 'companyId',
+        as: 'bookings'
+      });
+
+      BusCompany.hasMany(models.Payment, {
+        foreignKey: 'companyId',
+        as: 'payments'
+      });
+
+      if (models.CompanyUser) {
+        BusCompany.hasMany(models.CompanyUser, {
+          foreignKey: 'companyId',
+          as: 'members'
+        });
+      }
+
+      if (models.Schedule) {
+        BusCompany.hasMany(models.Schedule, {
+          foreignKey: 'companyId',
+          as: 'schedules'
+        });
+      }
+
+      if (models.Invoice) {
+        BusCompany.hasMany(models.Invoice, {
+          foreignKey: 'companyId',
+          as: 'invoices'
+        });
+      }
     }
   }
 

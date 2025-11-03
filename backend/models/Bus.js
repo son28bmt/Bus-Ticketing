@@ -15,6 +15,20 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'busId',
         as: 'trips'
       });
+
+      if (models.Seat) {
+        Bus.hasMany(models.Seat, {
+          foreignKey: 'busId',
+          as: 'seats'
+        });
+      }
+
+      if (models.Schedule) {
+        Bus.hasMany(models.Schedule, {
+          foreignKey: 'busId',
+          as: 'schedules'
+        });
+      }
     }
   }
 

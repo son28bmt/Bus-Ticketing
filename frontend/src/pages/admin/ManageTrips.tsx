@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { adminAPI } from '../../services/admin';
 import { LOCATIONS } from '../../constants/locations';
-import './style/ManageTables.css';
-import type { Trip } from '../../types/trip';
+import '../../style/table.css';
+import '../../style/admin-mobile.css';
+import type { Trip, Location } from '../../types/trip';
+import { toViStatus, statusVariant } from '../../utils/status';
 
 export default function ManageTrips() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -19,7 +21,7 @@ export default function ManageTrips() {
     basePrice: ''
   });
   const [buses, setBuses] = useState<Array<{ id: number; busNumber: string; busType: string; totalSeats: number }>>([]);
-  const [locations, setLocations] = useState<{ departure: Array<{ id: number; name: string }>; arrival: Array<{ id: number; name: string }> }>({ departure: [], arrival: [] });
+  const [locations, setLocations] = useState<{ departure: Location[]; arrival: Location[] }>({ departure: [], arrival: [] });
   const [editing, setEditing] = useState<null | Trip>(null);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [showTripDetails, setShowTripDetails] = useState(false);
@@ -63,10 +65,10 @@ export default function ManageTrips() {
       setTrips(tripsRes.data.trips || []);
       setBuses(busesRes.data.buses || []);
       // ✅ Fallback to static locations if API returns empty
-      const apiLocations = locRes.locations || { departure: [], arrival: [] };
+      const apiLocations = (locRes.locations || { departure: [], arrival: [] }) as { departure: Location[]; arrival: Location[] };
       if ((apiLocations.departure?.length || 0) === 0 && (apiLocations.arrival?.length || 0) === 0) {
-        const dep = (LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1, name }));
-        const arr = (LOCATIONS.arrival || LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1000, name }));
+        const dep: Location[] = (LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1, name }));
+        const arr: Location[] = (LOCATIONS.arrival || LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1000, name }));
         setLocations({ departure: dep, arrival: arr });
       } else {
         setLocations(apiLocations);
@@ -75,8 +77,8 @@ export default function ManageTrips() {
       setError('Không thể tải dữ liệu quản trị');
       console.error(e);
       // ✅ On error, still provide static fallback so selects are usable
-      const dep = (LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1, name }));
-      const arr = (LOCATIONS.arrival || LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1000, name }));
+  const dep: Location[] = (LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1, name }));
+  const arr: Location[] = (LOCATIONS.arrival || LOCATIONS.departure || []).map((name, idx) => ({ id: idx + 1000, name }));
       setLocations({ departure: dep, arrival: arr });
     } finally {
       setLoading(false);
@@ -157,7 +159,7 @@ export default function ManageTrips() {
   };
 
   return (
-    <div className="container py-6">
+    <div className="admin-manage-trips container">
       <h1 className="text-2xl font-semibold mb-4">Quản lý chuyến đi</h1>
 
       {error && <div className="alert alert-danger mb-3">{error}</div>}
@@ -165,7 +167,7 @@ export default function ManageTrips() {
 
       <div className="card p-3 mb-4">
         <label className="mb-2">Tất cả chuyến xe</label>
-        <select value={selectedTripId} onChange={e => {
+        <select className="form-select" value={selectedTripId} onChange={e => {
           const id = Number(e.target.value);
           setSelectedTripId(e.target.value);
           const trip = trips.find(t => t.id === id) || null;
@@ -182,45 +184,45 @@ export default function ManageTrips() {
 
       <form onSubmit={handleCreate} className="card p-3 mb-5">
         <h2 className="text-xl mb-3">Thêm chuyến</h2>
-        <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          <div>
+        <div className="row g-3">
+          <div className="col-12 col-md-4">
             <label>Xe</label>
-            <select value={form.busId} onChange={e => setForm(f => ({ ...f, busId: e.target.value }))} required>
+            <select className="form-select" value={form.busId} onChange={e => setForm(f => ({ ...f, busId: e.target.value }))} required>
               <option value="">-- Chọn xe --</option>
               {buses.map(b => (
                 <option key={b.id} value={b.id}>{b.busNumber} ({b.busType === 'SLEEPER' ? 'Giường nằm' : (b.busType === 'SEAT' ? 'Ghế ngồi' : b.busType)})</option>
               ))}
             </select>
           </div>
-          <div>
+          <div className="col-12 col-md-4">
             <label>Điểm đi</label>
-            <select value={form.departureLocationId} onChange={e => setForm(f => ({ ...f, departureLocationId: e.target.value }))} required>
+            <select className="form-select" value={form.departureLocationId} onChange={e => setForm(f => ({ ...f, departureLocationId: e.target.value }))} required>
               <option value="">-- Chọn điểm đi --</option>
               {locations.departure.map(l => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>
           </div>
-          <div>
+          <div className="col-12 col-md-4">
             <label>Điểm đến</label>
-            <select value={form.arrivalLocationId} onChange={e => setForm(f => ({ ...f, arrivalLocationId: e.target.value }))} required>
+            <select className="form-select" value={form.arrivalLocationId} onChange={e => setForm(f => ({ ...f, arrivalLocationId: e.target.value }))} required>
               <option value="">-- Chọn điểm đến --</option>
               {locations.arrival.map(l => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>
           </div>
-          <div>
+          <div className="col-12 col-md-4">
             <label>Giờ đi</label>
-            <input type="datetime-local" value={form.departureTime} onChange={e => setForm(f => ({ ...f, departureTime: e.target.value }))} required />
+            <input className="form-control" type="datetime-local" value={form.departureTime} onChange={e => setForm(f => ({ ...f, departureTime: e.target.value }))} required />
           </div>
-          <div>
+          <div className="col-12 col-md-4">
             <label>Giờ đến</label>
-            <input type="datetime-local" value={form.arrivalTime} onChange={e => setForm(f => ({ ...f, arrivalTime: e.target.value }))} required />
+            <input className="form-control" type="datetime-local" value={form.arrivalTime} onChange={e => setForm(f => ({ ...f, arrivalTime: e.target.value }))} required />
           </div>
-          <div>
+          <div className="col-12 col-md-4">
             <label>Giá cơ bản (VND)</label>
-            <input type="number" min={0} value={form.basePrice} onChange={e => setForm(f => ({ ...f, basePrice: e.target.value }))} required />
+            <input className="form-control" type="number" min={0} value={form.basePrice} onChange={e => setForm(f => ({ ...f, basePrice: e.target.value }))} required />
           </div>
         </div>
         <div className="mt-3">
@@ -255,7 +257,11 @@ export default function ManageTrips() {
                   <td>{new Date(t.departureTime).toLocaleString('vi-VN')}</td>
                   <td>{new Date(t.arrivalTime).toLocaleString('vi-VN')}</td>
                   <td>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(t.basePrice)}</td>
-                  <td>{t.status}</td>
+                  <td>
+                    <span className={`badge bg-${statusVariant(t.status)}`}>
+                      {toViStatus(t.status)}
+                    </span>
+                  </td>
                   <td>
                     <button className="btn btn-outline-info btn-sm me-1" onClick={() => handleViewTripDetails(t.id)} disabled={loadingDetails}>
                       {loadingDetails ? 'Đang tải...' : 'Chi tiết'}
@@ -282,38 +288,56 @@ export default function ManageTrips() {
       {editing && (
         <div className="card p-3 mt-4">
           <h2 className="text-xl mb-3">Sửa chuyến #{editing.id}</h2>
-          <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            <div>
+          <div className="row g-3">
+            <div className="col-12 col-md-4">
               <label>Xe</label>
-              <select value={editing.bus?.id} onChange={e => setEditing(ed => ed ? { ...ed, bus: { ...ed.bus, id: Number(e.target.value) } } : ed)}>
+              <select className="form-select" value={editing.bus?.id} onChange={e => setEditing(ed => ed ? { ...ed, bus: { ...ed.bus, id: Number(e.target.value) } } : ed)}>
                 {buses.map(b => (
                   <option key={b.id} value={b.id}>{b.busNumber} ({b.busType})</option>
                 ))}
               </select>
             </div>
-            <div>
+            <div className="col-12 col-md-4">
               <label>Điểm đi</label>
-              <select value={editing.departureLocation?.id} onChange={e => setEditing(ed => ed ? { ...ed, departureLocation: { id: Number(e.target.value), name: locations.departure.find(l => l.id === Number(e.target.value))?.name || '' } } : ed)}>
+              <select className="form-select" value={editing.departureLocation?.id} onChange={e => setEditing(ed => {
+                if (!ed) return ed;
+                const loc = locations.departure.find(l => l.id === Number(e.target.value));
+                return {
+                  ...ed,
+                  departureLocation: loc
+                    ? ({ id: loc.id, name: loc.name, province: '' } as Trip['departureLocation'])
+                    : ed.departureLocation
+                };
+              })}>
                 {locations.departure.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
-            <div>
+            <div className="col-12 col-md-4">
               <label>Điểm đến</label>
-              <select value={editing.arrivalLocation?.id} onChange={e => setEditing(ed => ed ? { ...ed, arrivalLocation: { id: Number(e.target.value), name: locations.arrival.find(l => l.id === Number(e.target.value))?.name || '' } } : ed)}>
+              <select className="form-select" value={editing.arrivalLocation?.id} onChange={e => setEditing(ed => {
+                if (!ed) return ed;
+                const loc = locations.arrival.find(l => l.id === Number(e.target.value));
+                return {
+                  ...ed,
+                  arrivalLocation: loc
+                    ? ({ id: loc.id, name: loc.name, province: '' } as Trip['arrivalLocation'])
+                    : ed.arrivalLocation
+                };
+              })}>
                 {locations.arrival.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
-            <div>
+            <div className="col-12 col-md-4">
               <label>Giờ đi</label>
-              <input type="datetime-local" value={new Date(editing.departureTime).toISOString().slice(0,16)} onChange={e => setEditing(ed => ed ? { ...ed, departureTime: new Date(e.target.value).toISOString() } : ed)} />
+              <input className="form-control" type="datetime-local" value={new Date(editing.departureTime).toISOString().slice(0,16)} onChange={e => setEditing(ed => ed ? { ...ed, departureTime: new Date(e.target.value).toISOString() } : ed)} />
             </div>
-            <div>
+            <div className="col-12 col-md-4">
               <label>Giờ đến</label>
-              <input type="datetime-local" value={new Date(editing.arrivalTime).toISOString().slice(0,16)} onChange={e => setEditing(ed => ed ? { ...ed, arrivalTime: new Date(e.target.value).toISOString() } : ed)} />
+              <input className="form-control" type="datetime-local" value={new Date(editing.arrivalTime).toISOString().slice(0,16)} onChange={e => setEditing(ed => ed ? { ...ed, arrivalTime: new Date(e.target.value).toISOString() } : ed)} />
             </div>
-            <div>
+            <div className="col-12 col-md-4">
               <label>Giá cơ bản</label>
-              <input type="number" min={0} value={editing.basePrice} onChange={e => setEditing(ed => ed ? { ...ed, basePrice: Number(e.target.value) } : ed)} />
+              <input className="form-control" type="number" min={0} value={editing.basePrice} onChange={e => setEditing(ed => ed ? { ...ed, basePrice: Number(e.target.value) } : ed)} />
             </div>
           </div>
           <div className="mt-3">
@@ -683,8 +707,8 @@ export default function ManageTrips() {
                         </td>
                         <td>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.totalPrice)}</td>
                         <td>
-                          <span className={`badge ${booking.bookingStatus === 'CONFIRMED' ? 'bg-success' : booking.bookingStatus === 'COMPLETED' ? 'bg-primary' : 'bg-secondary'}`}>
-                            {booking.bookingStatus}
+                          <span className={`badge bg-${statusVariant(booking.bookingStatus)}`}>
+                            {toViStatus(booking.bookingStatus)}
                           </span>
                         </td>
                         <td>{new Date(booking.createdAt).toLocaleDateString('vi-VN')}</td>
@@ -714,3 +738,4 @@ export default function ManageTrips() {
     </div>
   );
 }
+

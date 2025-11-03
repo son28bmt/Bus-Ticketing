@@ -1,52 +1,56 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import PrivateRoute from './components/PrivateRoute';
+import { PrivateRoute } from './components/common';
+import { Profile, Settings } from './components/user';
 
-// Pages
-import Home from './pages/Home';
-import About from './pages/about';
-import Contact from './pages/contact';
-import News from './pages/news';
-import NewsDetail from './pages/NewsDetail';
-import Search from './pages/Search';
-import TripDetail from './pages/TripDetail';
-import Payment from './pages/Payment';
-import PaymentSuccess from './pages/PaymentSuccess';
-import VNPayReturn from './pages/VNPayReturn';
-import MyTickets from './pages/MyTickets';
-import Checkout from './pages/Checkout';
+// User pages
+import Home from './pages/user/Home';
+import About from './pages/user/About';
+import Contact from './pages/user/Contact';
+import News from './pages/user/News';
+import NewsDetail from './pages/user/NewsDetail';
+import Search from './pages/user/Search';
+import TripDetail from './pages/user/TripDetail';
+import Payment from './pages/user/Payment';
+import PaymentSuccess from './pages/user/PaymentSuccess';
+import VNPayReturn from './pages/user/VNPayReturn';
+import MyTickets from './pages/user/MyTickets';
+import MyVouchers from './pages/user/MyVouchers';
+// import TicketItem from './components/user/TicketItem';
+import Checkout from './pages/user/Checkout';
 
 // Auth pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
-// Components
-import Profile from './components/profile';
-import Settings from './components/settings';
-
-// Admin pages
-import AdminLayout from './components/admin/AdminLayout';
+// Layouts & admin/company pages
+import AdminLayout from './layouts/AdminLayout';
+import { CompanyLayout } from './components/company';
+import UserLayout from './layouts/UserLayout';
 import Dashboard from './pages/admin/Dashboard';
 import ManageUsers from './pages/admin/ManageUsers';
 import ManageTrips from './pages/admin/ManageTrips';
 import ManageBuses from './pages/admin/ManageBuses';
+import ManageCompanies from './pages/admin/ManageCompanies';
 import ManageBookings from './pages/admin/ManageBookings';
 import ManageNews from './pages/admin/ManageNews';
-import Reports from './pages/admin/Reports';
+import ManageVouchersAdmin from './pages/admin/ManageVouchers';
+import AdminReports from './pages/admin/AdminReports';
+import CompanyDashboard from './pages/company/CompanyDashboard';
+import CompanyManageTrips from './pages/company/ManageTrips';
+import CompanyManageBuses from './pages/company/ManageBuses';
+import CompanyManageVouchers from './pages/company/ManageVouchers';
+import CompanyReports from './pages/company/Reports';
+import CompanyManageBookings from './pages/company/ManageBookings';
+import CompanyManageNews from './pages/company/ManageNews';
+import Revenue from './pages/company/Revenue';
+import { ROLES } from './constants/roles';
 
 import './index.css';
 
 // Layout component for public pages
 const PublicLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="app-container">
-    <Navbar />
-    <main className="main-content">
-      {children}
-    </main>
-    <Footer />
-  </div>
+  <UserLayout>{children}</UserLayout>
 );
 
 // ✅ Error Boundary Component
@@ -81,7 +85,7 @@ class ErrorBoundary extends React.Component<
           backgroundColor: '#f8f9fa'
         }}>
           <h1 style={{ color: '#e53e3e', marginBottom: '16px' }}>
-            ⚠️ Có lỗi xảy ra
+            Có lỗi xảy ra
           </h1>
           <p style={{ color: '#4a5568', marginBottom: '24px', maxWidth: '600px' }}>
             Ứng dụng đã gặp sự cố không mong muốn. Vui lòng thử tải lại trang.
@@ -133,24 +137,45 @@ function App() {
       <Router>
         <Routes>
           {/* Admin Routes */}
-          <Route path="/admin/*" element={
-            <PrivateRoute allowedRoles={['ADMIN']}>
-              <AdminLayout />
-            </PrivateRoute>
-          }>
+          <Route
+            path="/admin/*"
+            element={
+              <PrivateRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminLayout />
+              </PrivateRoute>
+            }
+          >
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<ManageUsers />} />
+            <Route path="companies" element={<ManageCompanies />} />
+            <Route path="buses" element={<ManageBuses />} />
             <Route path="trips" element={<ManageTrips />} />
             <Route path="bookings" element={<ManageBookings />} />
             <Route path="news" element={<ManageNews />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="trips/create" element={<div>Thêm chuyến mới</div>} />
-            <Route path="buses" element={<ManageBuses />} />
-            <Route path="buses/create" element={<ManageBuses />} />
-            <Route path="revenue" element={<div>Báo cáo doanh thu</div>} />
+            <Route path="vouchers" element={<ManageVouchersAdmin />} />
+            <Route path="reports" element={<AdminReports />} />
           </Route>
 
+          {/* Company Routes */}
+          <Route
+            path="/company/*"
+            element={
+              <PrivateRoute allowedRoles={[ROLES.COMPANY]}>
+                <CompanyLayout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<CompanyDashboard />} />
+            <Route path="dashboard" element={<CompanyDashboard />} />
+            <Route path="trips" element={<CompanyManageTrips />} />
+            <Route path="buses" element={<CompanyManageBuses />} />
+            <Route path="bookings" element={<CompanyManageBookings />} />
+            <Route path="news" element={<CompanyManageNews />} />
+            <Route path="vouchers" element={<CompanyManageVouchers />} />
+            <Route path="reports" element={<CompanyReports />} />
+            <Route path="revenue" element={<Revenue />} />
+          </Route>
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
@@ -212,7 +237,14 @@ function App() {
               </PrivateRoute>
             </PublicLayout>
           } />
-          
+          <Route path="/my-vouchers" element={
+            <PublicLayout>
+              <PrivateRoute>
+                <MyVouchers />
+              </PrivateRoute>
+            </PublicLayout>
+          } />
+          {/** Removed debug route for TicketItem that lacked required props */}
           <Route path="/checkout" element={
             <PublicLayout>
               <PrivateRoute>
@@ -248,7 +280,7 @@ function App() {
                     fontWeight: '600'
                   }}
                 >
-                  🏠 Về trang chủ
+                 Về trang chủ
                 </a>
               </div>
             </PublicLayout>
@@ -260,3 +292,9 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+

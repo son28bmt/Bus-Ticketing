@@ -4,9 +4,8 @@ const {
   searchTrips,
   getLocations,
   getTripById,
-  getFeaturedTrips
-} = require('../controllers/trip.controller');
-
+  getFeaturedTrips,
+} = require('../controllers/common/trip.controller');
 // ✅ Routes with proper order
 router.get('/locations', getLocations);
 router.get('/featured', getFeaturedTrips);

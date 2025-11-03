@@ -7,7 +7,7 @@ module.exports = {
       name: 'Admin ShanBus',
       email: 'admin@shanbus.com',
       passwordHash: '$2a$12$dummy_password_hash_for_demo_purposes_only',
-      role: 'ADMIN',
+      role: 'admin',
       createdAt: new Date(),
       updatedAt: new Date()
     }], {

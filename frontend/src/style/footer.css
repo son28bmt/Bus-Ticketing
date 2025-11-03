@@ -24,6 +24,15 @@
     margin-bottom: 15px;
 }
 
+.brand-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.brand-link:hover {
+    color: #63b3ed;
+}
+
 .footer-section h4 {
     color: #e2e8f0;
     font-size: 1.1rem;

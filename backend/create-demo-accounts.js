@@ -21,7 +21,7 @@ const createDemoAccounts = async () => {
       email: 'admin@shanbus.com',
       phone: '0901234567',
       passwordHash: adminPassword,
-      role: 'ADMIN',
+      role: 'admin',
       status: 'ACTIVE'
     });
     console.log('✅ Created admin demo account');
@@ -33,7 +33,7 @@ const createDemoAccounts = async () => {
       email: 'user@example.com',
       phone: '0987654321',
       passwordHash: userPassword,
-      role: 'PASSENGER',
+      role: 'passenger',
       status: 'ACTIVE'
     });
     console.log('✅ Created user demo account');
