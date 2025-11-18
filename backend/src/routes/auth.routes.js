@@ -7,7 +7,7 @@ const {
   getProfile,
   updateProfile,
   changePassword
-} = require('../controllers/auth.controller');
+} = require('../controllers/user/auth.controller');
 
 // ✅ Registration route - Validation trong controller
 router.post('/register', register);

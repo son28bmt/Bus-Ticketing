@@ -4,17 +4,43 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // User có thể thuộc về một nhà xe (nếu là admin)
       User.belongsTo(models.BusCompany, {
         foreignKey: 'companyId',
         as: 'company'
       });
-      
-      // User có nhiều booking
+
       User.hasMany(models.Booking, {
         foreignKey: 'userId',
         as: 'bookings'
       });
+
+      if (models.CompanyUser) {
+        User.hasMany(models.CompanyUser, {
+          foreignKey: 'userId',
+          as: 'companyMemberships'
+        });
+      }
+
+      if (models.SeatLock) {
+        User.hasMany(models.SeatLock, {
+          foreignKey: 'userId',
+          as: 'seatLocks'
+        });
+      }
+
+      if (models.UserVoucher) {
+        User.hasMany(models.UserVoucher, {
+          foreignKey: 'userId',
+          as: 'voucherWallet'
+        });
+      }
+
+      if (models.Driver) {
+        User.hasOne(models.Driver, {
+          foreignKey: 'userId',
+          as: 'driverProfile'
+        });
+      }
     }
   }
 
@@ -40,8 +66,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'PASSENGER'),
-      defaultValue: 'PASSENGER'
+      type: DataTypes.ENUM('admin', 'company', 'driver', 'passenger'),
+      allowNull: false,
+      defaultValue: 'passenger'
     },
     companyId: {
       type: DataTypes.INTEGER,

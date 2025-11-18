@@ -4,34 +4,63 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Trip extends Model {
     static associate(models) {
-      // Trip thuộc về một nhà xe
       Trip.belongsTo(models.BusCompany, {
         foreignKey: 'companyId',
         as: 'company'
       });
-      
-      // Trip sử dụng một xe bus
+
       Trip.belongsTo(models.Bus, {
         foreignKey: 'busId',
         as: 'bus'
       });
-      
-      // Trip có điểm đi và điểm đến
+
+      if (models.Driver) {
+        Trip.belongsTo(models.Driver, {
+          foreignKey: 'driverId',
+          as: 'driver'
+        });
+      }
+
+      Trip.belongsTo(models.Route, {
+        foreignKey: 'routeId',
+        as: 'route'
+      });
+
       Trip.belongsTo(models.Location, {
         foreignKey: 'departureLocationId',
         as: 'departureLocation'
       });
-      
+
       Trip.belongsTo(models.Location, {
         foreignKey: 'arrivalLocationId',
         as: 'arrivalLocation'
       });
-      
-      // Trip có nhiều booking
+
       Trip.hasMany(models.Booking, {
         foreignKey: 'tripId',
         as: 'bookings'
       });
+
+      if (models.SeatLock) {
+        Trip.hasMany(models.SeatLock, {
+          foreignKey: 'tripId',
+          as: 'seatLocks'
+        });
+      }
+
+      if (models.TripStatusLog) {
+        Trip.hasMany(models.TripStatusLog, {
+          foreignKey: 'tripId',
+          as: 'statusLogs'
+        });
+      }
+
+      if (models.TripReport) {
+        Trip.hasMany(models.TripReport, {
+          foreignKey: 'tripId',
+          as: 'reports'
+        });
+      }
     }
   }
 
@@ -55,6 +84,22 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       references: {
         model: 'buses',
+        key: 'id'
+      }
+    },
+    driverId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'drivers',
+        key: 'id'
+      }
+    },
+    routeId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'routes',
         key: 'id'
       }
     },
@@ -89,6 +134,14 @@ module.exports = (sequelize, DataTypes) => {
     status: {
       type: DataTypes.ENUM('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'),
       defaultValue: 'SCHEDULED'
+    },
+    startedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    endedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
     totalSeats: {
       type: DataTypes.INTEGER,

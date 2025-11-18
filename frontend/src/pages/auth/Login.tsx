@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
+import ROLES from '../../constants/roles';
 import '../../style/login.css';
 
 export default function Login() {
@@ -49,7 +50,7 @@ export default function Login() {
       const user = useUserStore.getState().user;
       console.log('✅ Login successful, redirecting...', user);
       
-      if (user?.role === 'ADMIN') {
+      if (user?.role === ROLES.ADMIN) {
         navigate('/admin/dashboard');
       } else {
         navigate('/');
@@ -93,14 +94,14 @@ export default function Login() {
               className="demo-btn admin"
               onClick={() => fillDemoAccount('admin')}
             >
-              👨‍💼 Admin
+              Admin
             </button>
             <button 
               type="button" // ⭐ QUAN TRỌNG
               className="demo-btn user"
               onClick={() => fillDemoAccount('user')}
             >
-              👤 User
+              User
             </button>
           </div>
         </div>

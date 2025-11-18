@@ -99,7 +99,7 @@
   flex-shrink: 0;
 }
 
-.news-sidebar-card {
+ .news-sidebar-card {
   background: white;
   border-radius: 0.75rem;
   padding: 1rem;
@@ -108,7 +108,7 @@
   top: 2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
-}
+}\n.news-empty {\n  color: #64748b;\n  font-size: 0.9rem;\n  margin: 0;\n}\n\n.news-voucher-list {\n  list-style: none;\n  padding: 0;\n  margin: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 0.75rem;\n}\n\n.news-voucher-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  padding: 12px;\n  border: 1px dashed #cbd5f5;\n  border-radius: 12px;\n  background: #f8fafc;\n}\n\n.news-voucher-info {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n\n.news-voucher-info small {\n  color: #64748b;\n  font-size: 0.8rem;\n}\n
 
 .news-sidebar h3 {
   font-size: 1.125rem;
@@ -233,6 +233,17 @@
   font-weight: 600;
 }
 
+.news-company-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background-color: #fefcbf;
+  color: #b7791f;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .news-title {
   font-size: 1.125rem;
   font-weight: 600;
@@ -305,6 +316,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
   display: flex;
+  align-items: stretch; /* ensure content columns match height */
 }
 
 .news-item:hover {
@@ -317,6 +329,22 @@
   height: 160px;
   object-fit: cover;
   flex-shrink: 0;
+}
+
+/* Force any img inside the image wrapper to fill and crop consistently */
+.news-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Ensure highlighted images are also constrained */
+.highlighted-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
 }
 
 .news-item-content {
@@ -344,6 +372,7 @@
 }
 
 .news-item-title {
+  text-decoration: none !important;
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 0.75rem;
@@ -352,7 +381,7 @@
 
 .news-item-title a {
   color: #1a202c;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: color 0.2s;
 }
 
@@ -533,7 +562,7 @@
     order: 1;
   }
   
-  .news-sidebar-card {
+   .news-sidebar-card {
     position: static;
   }
 }
@@ -590,7 +619,7 @@
     font-size: 1.75rem;
   }
   
-  .news-sidebar-card {
+   .news-sidebar-card {
     padding: 1rem;
   }
   

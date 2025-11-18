@@ -18,6 +18,11 @@ export interface News {
     name: string;
     email?: string;
   };
+  company?: {
+    id: number;
+    name: string;
+    code?: string | null;
+  } | null;
 }
 
 export type NewsCategory = 'TRAFFIC' | 'COMPANY' | 'PROMOTION' | 'ANNOUNCEMENT' | 'OTHER';
@@ -34,6 +39,7 @@ export interface CreateNewsData {
   tags?: string[];
   isHighlighted?: boolean;
   publishNow?: boolean;
+  companyId?: number;
 }
 
 export interface UpdateNewsData {
@@ -46,6 +52,7 @@ export interface UpdateNewsData {
   tags?: string[];
   isHighlighted?: boolean;
   publishNow?: boolean;
+  companyId?: number | null;
 }
 
 export interface NewsSearchParams {
@@ -98,6 +105,6 @@ export const NEWS_CATEGORIES = {
 
 export const NEWS_STATUS = {
   DRAFT: 'Bản nháp',
-  PUBLISHED: 'Đã xuất bản', 
+  PUBLISHED: 'xuất bản', 
   ARCHIVED: 'Lưu trữ'
 } as const;

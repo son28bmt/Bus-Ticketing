@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 const Seat = (sequelize) => {
-  return sequelize.define('Seat', {
+  const SeatModel = sequelize.define('Seat', {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -49,6 +49,29 @@ const Seat = (sequelize) => {
       }
     ]
   });
+
+  SeatModel.associate = (models) => {
+    SeatModel.belongsTo(models.Bus, {
+      foreignKey: 'busId',
+      as: 'bus'
+    });
+
+    if (models.BookingItem) {
+      SeatModel.hasMany(models.BookingItem, {
+        foreignKey: 'seatId',
+        as: 'bookingItems'
+      });
+    }
+
+    if (models.SeatLock) {
+      SeatModel.hasMany(models.SeatLock, {
+        foreignKey: 'seatId',
+        as: 'locks'
+      });
+    }
+  };
+
+  return SeatModel;
 };
 
 module.exports = Seat;

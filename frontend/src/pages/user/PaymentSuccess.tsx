@@ -1,0 +1,503 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { formatPrice } from '../../utils/price';
+import { formatTime, formatDate } from '../../utils/formatDate';
+import '../../style/payment-success.css';
+import { useVNPay, type InvoiceData } from '../../hooks/useVNPay';
+import { bookingAPI } from '../../services/booking';
+import type { PaymentProcessData } from '../../types/payment';
+import type { BusCompanyRef } from '../../types/trip';
+import { toViStatus, statusVariant } from '../../utils/status';
+import { useUserStore } from '../../store/user';
+
+const FALLBACK_BANK_INFO = {
+  bankName: import.meta.env.VITE_BANK_NAME || 'ShanBus',
+  bankCode: import.meta.env.VITE_BANK_CODE || 'VCB',
+  accountName: import.meta.env.VITE_BANK_ACCOUNT_NAME || 'SHANBUS',
+  accountNumber: import.meta.env.VITE_BANK_ACCOUNT_NO || '0000000000'
+};
+
+interface LocationState {
+  booking: {
+    id: number;
+    bookingCode: string;
+    passengerName: string;
+    passengerPhone: string;
+    seatNumbers: string[];
+    totalPrice: number;
+    paymentStatus: string;
+    bookingStatus: string;
+    createdAt: string;
+  };
+  payment: {
+    id: number;
+    paymentCode: string;
+    amount: number;
+    paymentMethod: string;
+    paymentStatus: string;
+  };
+  trip: {
+    id: number;
+    route: string;
+    departureLocation: string;
+    arrivalLocation: string;
+    departureTime: string;
+    arrivalTime: string;
+    company?: BusCompanyRef | null;
+    bus?: {
+      company?: BusCompanyRef | null;
+    } | null;
+  };
+}
+
+export default function PaymentSuccess() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const locationState = location.state as LocationState;
+  const { getInvoice } = useVNPay();
+  const { user } = useUserStore();
+
+  // Local state to support invoice-based rendering when location state is absent
+  const [booking, setBooking] = useState<LocationState['booking'] | undefined>(locationState?.booking);
+  const [payment, setPayment] = useState<LocationState['payment'] | undefined>(locationState?.payment);
+  const [trip, setTrip] = useState<LocationState['trip'] | undefined>(locationState?.trip);
+  const [showQR, setShowQR] = useState(false);
+  const [confirmingTransfer, setConfirmingTransfer] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const bankInfo = useMemo(() => {
+  const company = trip?.company ?? trip?.bus?.company ?? null;
+  const noteParts: string[] = [];
+  const prefix = company?.code || 'SHANBUS';
+  if (prefix) {
+    noteParts.push(prefix);
+  }
+  if (booking?.bookingCode) {
+    noteParts.push(booking.bookingCode);
+  }
+  const transferNote = noteParts.join(' ').trim() || 'SHANBUS';
+
+  if (company) {
+    const hasCustomInfo =
+      company.bankAccountNumber ||
+      company.bankAccountName ||
+      company.bankName ||
+      company.bankCode;
+
+    const normalizedAccountName = company.bankAccountName || company.name || FALLBACK_BANK_INFO.accountName;
+    const normalizedCompanyName = company.name || normalizedAccountName;
+
+    if (hasCustomInfo) {
+      return {
+        bankName: company.bankName || FALLBACK_BANK_INFO.bankName,
+        bankCode: company.bankCode || FALLBACK_BANK_INFO.bankCode,
+        accountName: normalizedAccountName,
+        accountNumber: company.bankAccountNumber || FALLBACK_BANK_INFO.accountNumber,
+        companyName: normalizedCompanyName,
+        transferNote
+      };
+    }
+
+    return {
+      ...FALLBACK_BANK_INFO,
+      companyName: normalizedCompanyName,
+      transferNote
+    };
+  }
+
+  return {
+    ...FALLBACK_BANK_INFO,
+    companyName: 'ShanBus',
+    transferNote
+  };
+  }, [trip, booking?.bookingCode]);
+
+useEffect(() => {
+  const bootstrap = async () => {
+    try {
+        // If no booking info from state, try loading from invoice API using paymentId
+        if (!booking) {
+          const paymentIdParam = searchParams.get('paymentId');
+          const paymentId = paymentIdParam ? parseInt(paymentIdParam, 10) : (locationState?.payment?.id ?? undefined);
+
+          if (paymentId) {
+            const inv: InvoiceData = await getInvoice(paymentId);
+
+            // Map invoice to UI shape
+            const mappedBooking: LocationState['booking'] = {
+              id: inv.booking?.id || 0,
+              bookingCode: inv.booking?.code || inv.vnpay?.orderId || 'N/A',
+              passengerName: inv.customer?.name || '',
+              passengerPhone: inv.customer?.phone || '',
+              seatNumbers: inv.booking?.seats || [],
+              totalPrice: inv.booking?.totalPrice || inv.amount || 0,
+              paymentStatus: inv.booking?.paymentStatus || (inv.status === 'SUCCESS' ? 'PAID' : 'PENDING'),
+              bookingStatus: 'CONFIRMED',
+              createdAt: new Date().toISOString()
+            };
+
+            const mappedPayment: LocationState['payment'] = {
+              id: paymentId,
+              paymentCode: inv.receiptNo,
+              amount: inv.amount,
+              paymentMethod: inv.method,
+              paymentStatus: inv.status
+            };
+
+            const routeStr = inv.trip?.from && inv.trip?.to ? `${inv.trip.from} → ${inv.trip.to}` : '';
+            const mappedTrip: LocationState['trip'] = {
+              id: inv.trip?.id || 0,
+              route: routeStr,
+              departureLocation: inv.trip?.from || '',
+              arrivalLocation: inv.trip?.to || '',
+              departureTime: inv.trip?.departureTime || new Date().toISOString(),
+              arrivalTime: inv.trip?.arrivalTime || new Date().toISOString(),
+              company: locationState?.trip?.company ?? null,
+              bus: locationState?.trip?.bus ?? null
+            };
+
+            setBooking(mappedBooking);
+            setPayment(mappedPayment);
+            setTrip(mappedTrip);
+          }
+        }
+
+      } catch {
+        // If invoice fetch fails, fallback to home
+        navigate('/');
+      }
+    };
+
+    bootstrap();
+}, [navigate, user]);
+
+  useEffect(() => {
+    const finalizePaymentIfNeeded = async () => {
+      if (!booking || !payment) {
+        return;
+      }
+
+      const normalizedMethod = (payment.paymentMethod?.toUpperCase() as PaymentProcessData['paymentMethod']) ?? 'BANK_TRANSFER';
+      if (payment.paymentStatus === 'SUCCESS' || normalizedMethod === 'BANK_TRANSFER') {
+        return;
+      }
+
+      try {
+        const response = await bookingAPI.processPayment(payment.id, {
+          transactionId: `SUCCESS-CATCH-UP-${Date.now()}`,
+          amount: Number(booking.totalPrice) || 0,
+          paymentMethod: normalizedMethod
+        });
+
+        setBooking(response.data.booking);
+        // Response payment doesn't include method; preserve the one we used
+        setPayment({
+          id: response.data.payment.id,
+          paymentCode: response.data.payment.paymentCode,
+          amount: response.data.payment.amount,
+          paymentMethod: normalizedMethod,
+          paymentStatus: response.data.payment.paymentStatus
+        });
+      } catch (autoFinalizeError) {
+        console.error('payment-success:autoFinalize', autoFinalizeError);
+      }
+    };
+
+    finalizePaymentIfNeeded();
+  }, [booking, payment]);
+
+  // (legacy color mapping removed; using Bootstrap badge variants via statusVariant)
+
+  const getPaymentMethodLabel = (method: string) => {
+    const labels = {
+      CASH: 'Tiền mặt',
+      BANK_TRANSFER: 'Chuyển khoản',
+      CREDIT_CARD: 'Thẻ tín dụng',
+      E_WALLET: 'Ví điện tử',
+      VNPAY: 'VNPay'
+    };
+    return labels[method as keyof typeof labels] || method;
+  };
+
+  const handlePrimaryAction = () => {
+    if (user) {
+      navigate('/my-tickets');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!booking || !payment) return;
+
+    setConfirmMessage(null);
+    setConfirmingTransfer(true);
+
+    try {
+      const response = await bookingAPI.processPayment(payment.id, {
+        transactionId: `MANUAL-BANK-${Date.now()}`,
+        amount: Number(booking.totalPrice) || 0,
+        paymentMethod: 'BANK_TRANSFER'
+      });
+
+      setBooking(response.data.booking);
+      setPayment({
+        id: response.data.payment.id,
+        paymentCode: response.data.payment.paymentCode,
+        amount: response.data.payment.amount,
+        paymentMethod: 'BANK_TRANSFER',
+        paymentStatus: response.data.payment.paymentStatus
+      });
+      setConfirmMessage({ type: 'success', text: 'Xác nhận thanh toán thành công!' });
+    } catch (error: unknown) {
+      console.error('payment-success:manualConfirm', error);
+      let message = 'Không thể xác nhận thanh toán, vui lòng thử lại.';
+      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.data?.message) {
+        message = (error as any).response.data.message;
+      }
+      setConfirmMessage({ type: 'error', text: message });
+    } finally {
+      setConfirmingTransfer(false);
+    }
+  };
+
+  if (!booking) {
+    return (
+      <div className="payment-success-page">
+        <div className="container">
+          <div className="loading">
+            <div className="loading-spinner"></div>
+            <p>Đang tải...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="payment-success-page">
+      <div className="container">
+        <div className="success-content">
+          {/* Success Header */}
+          <div className="success-header">
+            <div className="success-icon">
+              <div className="checkmark">✓</div>
+            </div>
+            <h1>Đặt vé thành công!</h1>
+            <p className="success-message">
+              Cảm ơn bạn đã tin tướng và sử dụng dịch vụ của ShanBus
+            </p>
+          </div>
+
+          {/* Booking Information */}
+          <div className="booking-info-card">
+            <div className="card-header">
+              <h3>Thông tin đặt vé</h3>
+              <div className="booking-code">
+                <span>Mã đặt vé:</span>
+                <strong>{booking.bookingCode}</strong>
+              </div>
+            </div>
+
+            <div className="card-content">
+              <div className="info-grid">
+                {/* Trip Information */}
+                <div className="info-section">
+                  <h4>Thông tin chuyến xe</h4>
+                  <div className="trip-route">
+                    <div className="route-display">
+                      <div className="departure">
+                        <div className="location">{trip?.departureLocation || ''}</div>
+                        <div className="time">
+                          {trip ? `${formatTime(trip.departureTime)} - ${formatDate(trip.departureTime)}` : ''}
+                        </div>
+                      </div>
+                      <div className="route-arrow">→</div>
+                      <div className="arrival">
+                        <div className="location">{trip?.arrivalLocation || ''}</div>
+                        <div className="time">
+                          {trip ? `${formatTime(trip.arrivalTime)} - ${formatDate(trip.arrivalTime)}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="route-name">
+                    <strong>Tuyến:</strong> {trip?.route || ''}
+                  </div>
+                </div>
+
+                {/* Passenger Information */}
+                <div className="info-section">
+                  <h4>Thông tin hành khách</h4>
+                  <div className="passenger-details">
+                    <p><strong>Họ tên:</strong> {booking.passengerName}</p>
+                    <p><strong>Điện thoại:</strong> {booking.passengerPhone}</p>
+                  </div>
+                </div>
+
+                {/* Seat Information */}
+                <div className="info-section">
+                  <h4>💺 Ghế đã đặt</h4>
+                  <div className="seat-list">
+                    {booking.seatNumbers.map((seat, index) => (
+                      <span key={index} className="seat-badge">
+                        {seat}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="seat-count">
+                    Tổng số ghế: <strong>{booking.seatNumbers.length}</strong>
+                  </p>
+                </div>
+
+                {/* Payment Information */}
+                <div className="info-section">
+                  <h4>💳 Thông tin thanh toán</h4>
+                  <div className="payment-details">
+                    <div className="payment-row">
+                      <span>Mã thanh toán:</span>
+                      <strong>{payment?.paymentCode || ''}</strong>
+                    </div>
+                    <div className="payment-row">
+                      <span>Phương thức:</span>
+                      <span>{payment ? getPaymentMethodLabel(payment.paymentMethod) : ''}</span>
+                    </div>
+                    <div className="payment-row">
+                      <span>Trạng thái:</span>
+                      <span className={`badge bg-${statusVariant(payment?.paymentStatus)}`}>
+                        {toViStatus(payment?.paymentStatus)}
+                      </span>
+                    </div>
+                    <div className="payment-row total">
+                      <span>Tổng tiền:</span>
+                      <strong className="total-amount">
+                        {formatPrice(booking.totalPrice)}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Status Alert */}
+          {payment?.paymentMethod === 'BANK_TRANSFER' && booking && (
+            <div className="payment-alert">
+              <h4>⚠ Hoan tat thanh toan</h4>
+              <div className="bank-transfer-info">
+                <p>
+                  Vui long chuyen khoan theo thong tin sau{bankInfo.companyName ? (
+                    <> cua <strong>{bankInfo.companyName}</strong></>
+                  ) : ''}:
+                </p>
+                <div className="bank-details">
+                  <div className="bank-info">
+                    <p><strong>Ngân hàng:</strong> {bankInfo.bankName}</p>
+                    <p><strong>Số tài khoản:</strong> {bankInfo.accountNumber}</p>
+                    <p><strong>Chủ tài khoản:</strong> {bankInfo.accountName}</p>
+                    <p><strong>Số tiền:</strong> {formatPrice(booking.totalPrice)}</p>
+                    <p><strong>Mã ngân hàng (VietQR):</strong> {bankInfo.bankCode}</p>
+                    <p><strong>Nội dung:</strong> <code>{bankInfo.transferNote}</code></p>
+                  </div>
+                </div>
+                <p className="transfer-note">
+                  ⚠ <strong>ưu ý:</strong> Vé sẽ được kích hoạt sau khi chúng tôi nhận được thanh toán (trong vòng 5-10 phút)
+                </p>
+                {confirmMessage && (
+                  <div className={`alert ${confirmMessage.type === 'success' ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: '12px' }}>
+                    {confirmMessage.text}
+                  </div>
+                )}
+                {payment.paymentStatus !== 'SUCCESS' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary confirm-transfer-btn"
+                    onClick={handleConfirmTransfer}
+                    disabled={confirmingTransfer}
+                    style={{ marginTop: '12px' }}
+                  >
+                    {confirmingTransfer ? 'Dang xac nhan...' : 'Xac nhan da thanh toan'}
+                  </button>
+                ) : (
+                  <div className="alert alert-success" style={{ marginTop: '12px' }}>
+                    Vé đã được xác nhận thanh toán thành công.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {payment?.paymentStatus === 'PENDING' && payment?.paymentMethod === 'CASH' && (
+            <div className="payment-alert cash-payment">
+              <h4>💵 Thanh toán tại bến xe</h4>
+              <div className="cash-instructions">
+                <ul>
+                  <li>Vui lòng đến bến xe trước giờ khởi hành <strong>30 phút</strong></li>
+                  <li>Mang theo <strong>CCCD/CMND</strong> để đối chiếu thông tin</li>
+                  <li>Xuất trình mã đặt vé: <strong>{booking.bookingCode}</strong></li>
+                  <li>Thanh toán số tiền: <strong>{formatPrice(booking.totalPrice)}</strong></li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* QR Code Section */}
+          <div className="qr-section">
+            <button 
+              className="show-qr-btn"
+              onClick={() => setShowQR(!showQR)}
+            >
+              📱 {showQR ? 'Ẩn mã QR' : 'Hiển thị mã QR'}
+            </button>
+            
+            {showQR && (
+              <div className="qr-code-display">
+                <div className="qr-placeholder">
+                  <div className="qr-code">
+                    {/* QR Code would be generated here */}
+                    <div className="qr-pattern">
+                      <div></div><div></div><div></div>
+                      <div></div><div></div><div></div>
+                      <div></div><div></div><div></div>
+                    </div>
+                  </div>
+                  <p>Quét mã QR để kiểm tra thông tin vé</p>
+                  <p className="qr-code-text">{booking.bookingCode}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="action-buttons single">
+            <button 
+              className="btn btn-primary"
+              onClick={handlePrimaryAction}
+            >
+              {user ? 'Xem vé của tôi' : 'Về trang chủ'}
+            </button>
+          </div>
+
+          {/* Important Notes */}
+          <div className="important-notes">
+            <h4>Lưu ý quan trọng</h4>
+            <ul>
+              <li>Vui lòng lưu lại mã đặt vé: <strong>{booking.bookingCode}</strong></li>
+              <li>Đến bến xe trước giờ khởi hành 30 phút để làm thủ tục lên xe</li>
+              <li>Mang theo CCCD/CMND để đối chiếu thông tin</li>
+              <li>Liên hệ hotline <strong>0915582684 </strong> nếu cần hỗ trợ</li>
+              <li>Có thể hủy vé trước giờ khởi hành 2 tiếng (phí hủy 10%)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
+
+

@@ -5,6 +5,11 @@
   background: linear-gradient(135deg, #f0fff4 0%, #f7fafc 100%);
 }
 
+/* Use global app font on payment success page */
+.payment-success-page, .payment-success-page * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+}
+
 .success-content {
   max-width: 800px;
   margin: 0 auto;
@@ -388,7 +393,8 @@
 }
 
 .qr-code-text {
-  font-family: 'Courier New', monospace;
+  /* Use the main font for better visual consistency */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
   font-weight: 700;
   color: #374151;
   background: #f3f4f6;

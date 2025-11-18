@@ -15,7 +15,7 @@ const createTripData = async () => {
         email: 'admin@shanbus.com',
         phone: '0901234567',
         passwordHash: adminPassword,
-        role: 'ADMIN',
+        role: 'admin',
         status: 'ACTIVE'
       });
     }

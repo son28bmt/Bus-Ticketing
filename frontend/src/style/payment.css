@@ -1,8 +1,172 @@
+﻿.voucher-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voucher-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.voucher-auth-notice {
+  background: #eef2ff;
+  border: 1px dashed #c7d2fe;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 0.95rem;
+  color: #3730a3;
+}
+
+.voucher-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.voucher-auth-actions .btn-link {
+  color: #2563eb;
+}
+
+.voucher-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.voucher-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.voucher-message {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.voucher-message.success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.voucher-message.error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.discount-amount {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.voucher-code {
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.btn-secondary {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.guest-checkout-notice {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.guest-checkout-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid #c7d2fe;
+  border-top-color: #4f46e5;
+  animation: spin 0.9s linear infinite;
+}
+
+.guest-checkout-content h3 {
+  margin: 0 0 6px;
+  color: #312e81;
+  font-size: 1.1rem;
+}
+
+.guest-checkout-content p {
+  margin: 0;
+  color: #4c51bf;
+  font-size: 0.95rem;
+}
+
+.guest-checkout-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.payment-method.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 /* Payment Page Styles */
 .payment-page {
   min-height: calc(100vh - 160px);
   padding: 20px 0;
   background: #f8fafc;
+}
+
+/* Ensure payment pages use the app's main font stack */
+.payment-page, .payment-page * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
 }
 
 .payment-header {
@@ -730,3 +894,4 @@ textarea.form-control {
     padding: 10px;
   }
 }
+

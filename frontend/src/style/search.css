@@ -399,6 +399,21 @@
   
   .search-form-horizontal {
     flex-direction: column;
+    gap: 12px;
+  }
+  .search-form-horizontal .form-group {
+    width: 100%;
+    min-width: 0;
+  }
+  .search-form-horizontal .form-control,
+  .search-form-horizontal .search-btn {
+    width: 100%;
+  }
+  .swap-button {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto;
+    font-size: 16px;
   }
   
   .time-info {
@@ -424,3 +439,54 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* All Trips Section */
+/* .all-trips-section {
+  margin-top: 32px;
+} */
+
+.all-trips-section .results-header {
+  margin-bottom: 16px;
+}
+
+.all-trips-section .trip-results {
+  margin-top: 16px;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  min-width: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.pagination-btn.active {
+  background-color: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

@@ -1,152 +1,150 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import './style/AdminSidebar.css';
 
 interface MenuItem {
   id: string;
   title: string;
-  icon: string;
   path: string;
-  exact?: boolean; // ✅ Thêm optional property exact
+  exact?: boolean;
   submenu?: MenuItem[];
 }
 
-export default function AdminSidebar() {
-  const location = useLocation();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['dashboard']);
-
-  const menuItems: MenuItem[] = [
-    { 
-      path: '/admin', 
-      id: 'overview', // ✅ Đổi id để tránh trùng lặp
-      icon: '📊', 
-      title: 'Tổng quan', 
-      exact: true 
-    },
+const MENU_ITEMS: MenuItem[] = [
+    // {
+    //   id: 'overview',
+    //   title: 'Tổng quan',
+    //   // icon: '??',
+    //   path: '/admin',
+    //   exact: true,
+    // },
     {
       id: 'dashboard',
       title: 'Dashboard',
-      icon: '�', // ✅ Đổi icon để phân biệt
-      path: '/admin/dashboard'
-    },
-    {
-      id: 'trips',
-      title: 'Quản lý chuyến xe',
-      icon: '🚌',
-      path: '/admin/trips',
-      submenu: [
-        { id: 'all-trips', title: 'Tất cả chuyến', icon: '📋', path: '/admin/trips' },
-        { id: 'add-trip', title: 'Thêm chuyến mới', icon: '➕', path: '/admin/trips/create' }
-      ]
-    },
-    {
-      id: 'buses',
-      title: 'Quản lý xe',
-      icon: '🚐',
-      path: '/admin/buses',
-      submenu: [
-        { id: 'all-buses', title: 'Tất cả xe', icon: '🚐', path: '/admin/buses' },
-        { id: 'add-bus', title: 'Thêm xe mới', icon: '➕', path: '/admin/buses/create' }
-      ]
-    },
-    {
-      id: 'bookings',
-      title: 'Đặt vé & Khách hàng',
-      icon: '🎫',
-      path: '/admin/bookings'
-    },
-    {
-      id: 'revenue',
-      title: 'Doanh thu',
-      icon: '💰',
-      path: '/admin/revenue'
+      // icon: '?',
+      path: '/admin/dashboard',
     },
     {
       id: 'users',
-      title: 'Quản lý tài khoản',
-      icon: '👥',
-      path: '/admin/users'
+      title: 'Quản Lý Người Dùng',
+      // icon: '?',
+      path: '/admin/users',
+    },
+    {
+      id: 'companies',
+      title: 'Quản Lý Nhà Xe',
+      // icon: '??',
+      path: '/admin/companies',
+    },
+    {
+      id: 'buses',
+      title: 'Quản Lý Xe',
+      // icon: '??',
+      path: '/admin/buses',
+    },
+    {
+      id: 'trips',
+      title: 'Quản Lý Chuyến Xe',
+      // icon: '?',
+      path: '/admin/trips',
+      // submenu: [
+      //   {
+      //     id: 'all-trips',
+      //     title: 'Tất cả chuyến',
+      //     // icon: '??',
+      //     path: '/admin/trips',
+      //   },
+      // ],
+    },
+    {
+      id: 'bookings',
+      title: 'Quản Lý Đặt Vé',
+      // icon: '??',
+      path: '/admin/bookings',
     },
     {
       id: 'news',
-      title: 'Quản lý tin tức',
-      icon: '📰',
-      path: '/admin/news'
+      title: 'Tin tức',
+      // icon: '??',
+      path: '/admin/news',
     },
-    { 
-      path: '/admin/reports', 
-      id: 'reports', 
-      icon: '📋', // ✅ Đổi icon để phân biệt với dashboard
-      title: 'Báo cáo' 
-    }
-  ];
+    {
+      id: 'vouchers',
+      title: 'Voucher',
+      path: '/admin/vouchers',
+    },
+    {
+      id: 'reports',
+      title: 'Báo cáo',
+      // icon: '??',
+      path: '/admin/reports',
+    },
+];
 
-  const toggleMenu = (menuId: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(menuId) 
-        ? prev.filter(id => id !== menuId)
-        : [...prev, menuId]
+export default function AdminSidebar() {
+  const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const menuItems = MENU_ITEMS;
+
+  // Auto-expand sections when current path matches their base path
+  useMemo(() => {
+    const autoExpanded = menuItems
+      .filter((item) => item.submenu && location.pathname.startsWith(item.path))
+      .map((item) => item.id);
+    setExpandedMenus((prev) => Array.from(new Set([...prev, ...autoExpanded])));
+  }, [location.pathname, menuItems]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedMenus((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  const isActiveMenu = (path: string, exact?: boolean) => {
-    if (exact) {
-      return location.pathname === path;
-    }
-    return location.pathname === path || location.pathname.startsWith(path + '/');
-  };
-
-  const isMenuExpanded = (menuId: string) => expandedMenus.includes(menuId);
-
   return (
-    <div className="admin-sidebar">
+    <aside className="admin-sidebar">
       <div className="sidebar-header">
-        <h3>🚌 ShanBus Admin</h3>
+        <h3>Quản trị</h3>
       </div>
-      
       <nav className="sidebar-nav">
-        {menuItems.map(item => (
-          <div key={item.id} className="nav-item">
-            {item.submenu ? (
-              <>
-                <button 
-                  className={`nav-link expandable ${isMenuExpanded(item.id) ? 'expanded' : ''}`}
-                  onClick={() => toggleMenu(item.id)}
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-title">{item.title}</span>
-                  <span className="expand-arrow">
-                    {isMenuExpanded(item.id) ? '▼' : '▶'}
-                  </span>
-                </button>
-                
-                {isMenuExpanded(item.id) && (
-                  <div className="submenu">
-                    {item.submenu.map(subItem => (
-                      <Link
-                        key={subItem.id}
-                        to={subItem.path}
-                        className={`nav-link submenu-link ${isActiveMenu(subItem.path, subItem.exact) ? 'active' : ''}`}
-                      >
-                        <span className="nav-icon">{subItem.icon}</span>
-                        <span className="nav-title">{subItem.title}</span>
-                      </Link>
+        <ul>
+          {menuItems.map((item) => (
+            <li key={item.id} className="nav-item" style={{ padding: "12px 16px" }}>
+              {item.submenu ? (
+                <>
+                  <button
+                    style={{ padding: "12px 16px", width: '300px', gap: '12px' }}
+                    type="button"
+                    className={`nav-link expandable ${expandedMenus.includes(item.id) ? 'expanded' : ''}`}
+                    onClick={() => toggleExpand(item.id)}
+                    aria-expanded={expandedMenus.includes(item.id)}
+                  >
+                    {/* <span className="nav-icon">{item.icon}</span> */}
+                    <span className="nav-title">{item.title}</span>
+                    <span className="expand-arrow">▼</span>
+                  </button>
+                  <ul className="submenu" style={{ display: expandedMenus.includes(item.id) ? 'flex' : undefined }}>
+                    {item.submenu.map((sub) => (
+                      <li key={sub.id} className="nav-item">
+                        <NavLink to={sub.path} className={({ isActive }) => `submenu-link ${isActive ? 'active' : ''}`}>
+                          {/* <span className="nav-icon">{sub.icon}</span> */}
+                          <span className="nav-title">{sub.title}</span>
+                        </NavLink>
+                      </li>
                     ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <Link
-                to={item.path}
-                className={`nav-link ${isActiveMenu(item.path, item.exact) ? 'active' : ''}`}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-title">{item.title}</span>
-              </Link>
-            )}
-          </div>
-        ))}
+                  </ul>
+                </>
+              ) : (
+                <NavLink to={item.path} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  {/* <span className="nav-icon">{item.icon}</span> */}
+                  <span className="nav-title">{item.title}</span>
+                </NavLink>
+              )}
+            </li>
+          ))}
+        </ul>
       </nav>
-    </div>
+    </aside>
   );
 }
+
+

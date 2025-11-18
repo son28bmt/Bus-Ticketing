@@ -1,15 +1,13 @@
+import type { User } from './user';
+
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface LoginResponse {
-  user: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string;
-    role: 'ADMIN' | 'PASSENGER';
-  };
+// Note: Renamed to avoid conflict with User.LoginResponse
+export interface AuthLoginResponseAlt {
+  user: Pick<User, 'id' | 'name' | 'email' | 'phone' | 'role' | 'companyId' | 'status'>;
   token: string;
+  message?: string;
 }

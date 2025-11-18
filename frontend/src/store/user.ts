@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authAPI } from '../services/api';
+import { authAPI } from '../services/auth';
 import type { User, LoginResponse, RegisterResponse, RegisterUserData, ApiError } from '../types/user';
 
 interface UserState {
@@ -14,6 +14,9 @@ interface UserState {
   logout: () => void;
   initializeUser: () => void;
   clearError: () => void;
+  updateProfile: (data: { name?: string; phone?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  setAvatar: (avatarUrl: string) => void;
 }
 
 export const useUserStore = create<UserState>()(
@@ -26,11 +29,11 @@ export const useUserStore = create<UserState>()(
 
       login: async (email: string, password: string) => {
         try {
-          console.log('🔄 Store: Starting login process...');
+          console.log('ðŸ”„ Store: Starting login process...');
           set({ isLoading: true, error: null });
           
           const response: LoginResponse = await authAPI.login(email, password);
-          console.log('✅ Store: API response received', response);
+          console.log('âœ… Store: API response received', response);
           
           if (response.token && response.user) {
             set({ 
@@ -42,17 +45,17 @@ export const useUserStore = create<UserState>()(
             localStorage.setItem('token', response.token);
             localStorage.setItem('user', JSON.stringify(response.user));
             
-            console.log('✅ Store: Login successful, user stored');
+            console.log('âœ… Store: Login successful, user stored');
           } else {
             throw new Error('Invalid response from server');
           }
         } catch (error: unknown) {
-          console.error('❌ Store: Login error', error);
+          console.error('âŒ Store: Login error', error);
           
           const apiError = error as ApiError;
           const errorMessage = apiError.response?.data?.message || 
                               apiError.message || 
-                              'Đăng nhập thất bại';
+                              'ÄÄƒng nháº­p tháº¥t báº¡i';
           
           set({ 
             isLoading: false, 
@@ -69,7 +72,7 @@ export const useUserStore = create<UserState>()(
           
           const response: RegisterResponse = await authAPI.register(userData);
           
-          if (response.message === 'Đăng ký thành công') {
+          if (response.message === 'ÄÄƒng kÃ½ thÃ nh cÃ´ng') {
             await get().login(userData.email, userData.password);
           }
           
@@ -78,7 +81,7 @@ export const useUserStore = create<UserState>()(
           const apiError = error as ApiError;
           const errorMessage = apiError.response?.data?.message || 
                               apiError.message || 
-                              'Đăng ký thất bại';
+                              'ÄÄƒng kÃ½ tháº¥t báº¡i';
           
           set({ 
             isLoading: false, 
@@ -126,6 +129,50 @@ export const useUserStore = create<UserState>()(
       clearError: () => {
         set({ error: null });
       },
+
+      updateProfile: async (data: { name?: string; phone?: string }) => {
+        try {
+          set({ isLoading: true, error: null });
+          const res = await authAPI.updateProfile(data);
+          if (res.success && res.user) {
+            const updated = res.user;
+            set((state) => ({ user: { ...state.user!, ...updated }, isLoading: false }));
+            localStorage.setItem('user', JSON.stringify({ ...get().user, ...updated }));
+          } else {
+            set({ isLoading: false, error: res.message || 'Cáº­p nháº­t tháº¥t báº¡i' });
+          }
+        } catch (error: unknown) {
+          const apiError = error as ApiError;
+          set({ isLoading: false, error: apiError.response?.data?.message || apiError.message || 'Cáº­p nháº­t tháº¥t báº¡i' });
+          throw error;
+        }
+      },
+
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          const res = await authAPI.changePassword({ currentPassword, newPassword });
+          if (!res.success) {
+            set({ isLoading: false, error: res.message || 'Đổi mật khẩu thất bại' });
+            throw new Error(res.message || 'Đổi mật khẩu thất bại');
+          }
+          set({ isLoading: false });
+        } catch (error: unknown) {
+          const apiError = error as ApiError;
+          set({ isLoading: false, error: apiError.response?.data?.message || apiError.message || 'Đổi mật khẩu thất bại' });
+          throw error;
+        }
+      },
+
+      setAvatar: (avatarUrl: string) => {
+        set((state) => {
+          const updated = state.user ? { ...state.user, avatarUrl } : null;
+          if (updated) {
+            localStorage.setItem('user', JSON.stringify(updated));
+          }
+          return { user: updated } as Partial<UserState> as UserState;
+        });
+      },
     }),
     {
       name: 'user-store',
@@ -139,22 +186,59 @@ export const useUserStore = create<UserState>()(
 
 // Type guard function
 function isValidUser(obj: unknown): obj is User {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'name' in obj &&
-    'email' in obj &&
-    'phone' in obj &&
-    'role' in obj &&
-    'status' in obj &&
-    typeof (obj as Record<string, unknown>).id === 'number' &&
-    typeof (obj as Record<string, unknown>).name === 'string' &&
-    typeof (obj as Record<string, unknown>).email === 'string' &&
-    typeof (obj as Record<string, unknown>).phone === 'string' &&
-    ['ADMIN', 'PASSENGER'].includes((obj as Record<string, unknown>).role as string) &&
-    ['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes((obj as Record<string, unknown>).status as string)
-  );
-}
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
 
+  const record = obj as Record<string, unknown>;
+  const { id, name, email, phone, role, status } = record;
+
+  if (typeof id !== 'number' || typeof name !== 'string' || typeof email !== 'string' || typeof phone !== 'string') {
+    return false;
+  }
+
+  if (typeof role !== 'string' || !['admin', 'company', 'driver', 'passenger'].includes(role.toLowerCase())) {
+    return false;
+  }
+
+  if (typeof status !== 'string' || !['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes(status)) {
+    return false;
+  }
+
+  if ('companyId' in record) {
+    const companyId = record.companyId;
+    if (companyId !== null && typeof companyId !== 'number') {
+      return false;
+    }
+  }
+
+  if ('driverId' in record) {
+    const driverId = record.driverId;
+    if (driverId !== null && driverId !== undefined && typeof driverId !== 'number') {
+      return false;
+    }
+  }
+
+  if ('driverProfile' in record) {
+    const profile = record.driverProfile;
+    if (profile !== null && profile !== undefined) {
+      if (typeof profile !== 'object') {
+        return false;
+      }
+      const profileRecord = profile as Record<string, unknown>;
+      if (typeof profileRecord.id !== 'number' || typeof profileRecord.companyId !== 'number') {
+        return false;
+      }
+      if ('status' in profileRecord && typeof profileRecord.status !== 'string') {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+export default useUserStore;
 export type { User };
+
+
+

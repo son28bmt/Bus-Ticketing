@@ -1,0 +1,32 @@
+.admin-manage-trips .form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Make controls fill width inside cards */
+.admin-manage-trips .card select,
+.admin-manage-trips .card input,
+.admin-manage-trips .card .btn,
+.admin-manage-trips .card .form-control {
+  max-width: 100%;
+}
+
+/* Tables should scroll on small screens */
+.admin-manage-trips .table-responsive {
+  overflow-x: auto;
+}
+
+/* Tighten card padding on mobile */
+@media (max-width: 768px) {
+  .admin-manage-trips { padding-top: 8px; padding-bottom: 24px; }
+  .admin-manage-trips h1 { font-size: 20px; margin-bottom: 12px; }
+  .admin-manage-trips .card { padding: 12px !important; }
+  .admin-manage-trips .form-grid-3 { grid-template-columns: 1fr; gap: 10px; }
+  .admin-manage-trips .card select,
+  .admin-manage-trips .card input { width: 100%; }
+}
+
+@media (max-width: 420px) {
+  .admin-manage-trips h1 { font-size: 18px; }
+}

@@ -1,13 +1,14 @@
 import axios from "axios";
 import type { AxiosResponse } from 'axios';
 
-// User type matching với store
+// User type matching with store/backend roles
 interface User {
   id: number;
   name: string;
   email: string;
   phone: string;
-  role: 'ADMIN' | 'PASSENGER';
+  companyId?: number | null;
+  role: 'admin' | 'company' | 'passenger';
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   createdAt?: string;
   updatedAt?: string;
@@ -28,6 +29,7 @@ interface RegisterUserData {
   name: string;
   email: string;
   phone: string;
+  companyId?: number | null;
   password: string;
 }
 
@@ -177,3 +179,4 @@ export const tripAPI = {
 };
 
 export default api;
+

@@ -3,32 +3,55 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
-// ✅ Import database connection
-const db = require('../models');
-
-// ✅ Import routes
 const routes = require('./routes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
 // Middleware
 app.use(morgan('combined'));
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
-}));
+
+// Flexible CORS: allow multiple origins and common dev tunnel domains
+const rawOrigins = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173';
+const allowedOrigins = rawOrigins
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// Allow common tunneling domains (Cloudflare, LocalTunnel, Ngrok, VS Code Dev Tunnels)
+const allowedRegex = [
+  /\.trycloudflare\.com$/,
+  /\.loca\.lt$/,
+  /\.ngrok(-free)?\.app$/,
+  /\.devtunnels\.ms$/,
+];
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // Allow non-browser clients or same-origin
+      const isAllowed =
+        allowedOrigins.includes(origin) || allowedRegex.some((rx) => rx.test(origin));
+      if (isAllowed) return cb(null, true);
+      console.warn('[CORS] Blocked origin:', origin, '\n[Allowed origins]:', allowedOrigins);
+      return cb(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static files
+// Static assets
 app.use('/uploads', express.static('uploads'));
 
-// Note: Database connection is verified at startup in server.js
+// Upload endpoints
+app.use('/api/upload', uploadRoutes);
 
-// ✅ Routes - Use routes directly
+// API routes
 app.use('/', routes);
 
-// ✅ 404 handler - FIX: Use proper route pattern
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -38,15 +61,16 @@ app.use((req, res) => {
       '/api/auth',
       '/api/trips',
       '/api/bookings',
-      '/api/admin'
+      '/api/admin',
+      '/api/chat'
     ]
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err);
-  
+  console.error('Unhandled error:', err);
+
   if (res.headersSent) {
     return next(err);
   }

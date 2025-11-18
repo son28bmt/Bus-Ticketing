@@ -6,7 +6,7 @@ import type {
   NewsStatsResponse,
   SingleNewsResponse
 } from '../types/news';
-import api from './api';
+import api from './http';
 
 class NewsService {
   // Public APIs for users
@@ -75,6 +75,32 @@ class NewsService {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  }
+
+  // Company APIs
+  async getCompanyNews(params: NewsSearchParams = {}): Promise<NewsResponse> {
+    const response = await api.get('/company/news', { params });
+    return response.data;
+  }
+
+  async getCompanyNewsById(id: number): Promise<SingleNewsResponse> {
+    const response = await api.get(`/company/news/${id}`);
+    return response.data;
+  }
+
+  async createCompanyNews(data: CreateNewsData): Promise<SingleNewsResponse> {
+    const response = await api.post('/company/news', data);
+    return response.data;
+  }
+
+  async updateCompanyNews(id: number, data: UpdateNewsData): Promise<SingleNewsResponse> {
+    const response = await api.put(`/company/news/${id}`, data);
+    return response.data;
+  }
+
+  async deleteCompanyNews(id: number): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete(`/company/news/${id}`);
     return response.data;
   }
 }

@@ -14,6 +14,18 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'arrivalLocationId',
         as: 'arrivalTrips'
       });
+
+      if (models.Route) {
+        Location.hasMany(models.Route, {
+          foreignKey: 'fromLocationId',
+          as: 'originRoutes'
+        });
+
+        Location.hasMany(models.Route, {
+          foreignKey: 'toLocationId',
+          as: 'destinationRoutes'
+        });
+      }
     }
   }
 

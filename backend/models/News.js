@@ -48,6 +48,14 @@ const News = (sequelize) => {
         key: 'id'
       }
     },
+    companyId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'bus_companies',
+        key: 'id'
+      }
+    },
     viewCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0
@@ -94,6 +102,11 @@ const News = (sequelize) => {
     NewsModel.belongsTo(models.User, {
       foreignKey: 'authorId',
       as: 'author'
+    });
+    // Optional: News may belong to a BusCompany
+    NewsModel.belongsTo(models.BusCompany, {
+      foreignKey: 'companyId',
+      as: 'company'
     });
   };
 

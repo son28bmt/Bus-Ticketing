@@ -1,0 +1,96 @@
+# Booking API end-to-end tests (VS Code REST Client)
+# Prerequisites:
+# - Backend running locally on http://localhost:5000
+# - MySQL database configured and migrated with at least one future Trip and its Bus seats
+# - VS Code REST Client extension installed (humao.rest-client)
+#
+# Usage:
+# - Click "Send Request" above each request
+# - Variables like {{token}}, {{tripId}}, {{bookingId}}, {{paymentId}} will be auto-populated from previous responses
+
+@baseUrl = http://localhost:5000
+
+### Health check
+GET {{baseUrl}}/api/health
+
+### Login (update credentials)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "Password123!"
+}
+
+> {% 
+  if (response.status === 200 && response.body && response.body.token) {
+    client.global.set("token", response.body.token);
+    client.log("Saved token to {{token}}");
+  } else {
+    client.log("Login failed — check credentials.");
+  }
+%}
+
+### Search a future trip (adjust query as needed)
+GET {{baseUrl}}/api/trips/search?limit=5
+Authorization: Bearer {{token}}
+
+> {% 
+  const trips = response.body?.trips || [];
+  if (trips.length > 0) {
+    const first = trips[0];
+    client.global.set("tripId", first.id);
+    client.global.set("basePrice", String(first.basePrice ?? 100000));
+    client.log(`Using tripId=${first.id}, basePrice=${first.basePrice}`);
+  } else {
+    client.log("No future trips found — create one in admin/company first.");
+  }
+%}
+
+### Create booking (choose seat numbers available on the bus) 
+POST {{baseUrl}}/api/bookings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tripId": {{tripId}},
+  "passengerName": "Nguyen Van A",
+  "passengerPhone": "0900000000",
+  "passengerEmail": "user@example.com",
+  "seatNumbers": ["1"],
+  "totalPrice": {{basePrice}},
+  "paymentMethod": "BANK_TRANSFER",
+  "notes": "Test booking via REST client"
+}
+
+> {% 
+  if (response.status === 201 && response.body?.data) {
+    const data = response.body.data;
+    client.global.set("bookingId", data.booking?.id);
+    client.global.set("paymentId", data.payment?.id);
+    client.global.set("bookingCode", data.booking?.bookingCode);
+    client.global.set("amount", String(data.payment?.amount ?? data.booking?.totalPrice ?? 0));
+    client.log(`Created bookingId=${data.booking?.id}, paymentId=${data.payment?.id}`);
+  } else {
+    client.log("Create booking failed — check seatNumbers, tripId, and totalPrice.");
+  }
+%}
+
+### Process payment (optional; marks booking as PAID)
+POST {{baseUrl}}/api/bookings/payment/{{paymentId}}/process
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "bookingId": {{bookingId}},
+  "paymentMethod": "BANK_TRANSFER",
+  "amount": {{amount}}
+}
+
+### Get my bookings (verify booking appears)
+GET {{baseUrl}}/api/bookings/my-bookings?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Get booking by code
+GET {{baseUrl}}/api/bookings/code/{{bookingCode}}
+Authorization: Bearer {{token}}

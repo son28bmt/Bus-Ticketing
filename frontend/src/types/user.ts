@@ -3,8 +3,19 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'ADMIN' | 'PASSENGER';
+  avatarUrl?: string;
+  // Backend supports admin, company, driver, passenger
+  role: 'admin' | 'company' | 'driver' | 'passenger';
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  companyId?: number | null;
+  driverId?: number | null;
+  driverProfile?: {
+    id: number;
+    companyId: number;
+    licenseNumber?: string | null;
+    phone?: string | null;
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }

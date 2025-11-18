@@ -1,68 +1,138 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../../models');
+const { ROLES } = require('../constants/roles');
+const authorize = require('./authorize');
 
-// ✅ Main authentication middleware
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("Missing JWT_SECRET environment variable");
+}
+
+const authenticateTokenOptional = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  try {
+    const token = authHeader.slice('Bearer '.length);
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+  } catch (error) {
+    console.warn('[auth] optional token verification failed:', error.message);
+  }
+
+  return next();
+};
+
 const authenticateToken = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Không có token xác thực' 
-      });
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Missing authorization token' });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Token không hợp lệ' 
-      });
-    }
-
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const token = authHeader.slice('Bearer '.length);
+    const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
-    next();
-    
+
+    if (req.path && req.path.startsWith('/api/admin')) {
+      console.debug('[auth] admin request user', {
+        id: payload?.id,
+        role: payload?.role,
+        companyId: payload?.companyId
+      });
+    }
+
+    return next();
   } catch (error) {
-    console.error('Auth error:', error);
-    return res.status(401).json({ 
-      success: false,
-      message: 'Token không hợp lệ hoặc đã hết hạn' 
-    });
+    console.error('[auth] authenticateToken error:', error);
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
 
-// ✅ Admin role middleware
 const requireAdmin = (req, res, next) => {
-  if (req.user?.role !== 'ADMIN') {
+  if (req.user?.role !== ROLES.ADMIN) {
     return res.status(403).json({
       success: false,
-      message: 'Không có quyền truy cập',
-      requiredRole: 'ADMIN',
+      message: 'Admin access required',
+      requiredRole: ROLES.ADMIN,
       userRole: req.user?.role
     });
   }
-  next();
+  return next();
 };
 
-// ✅ Passenger role middleware
-const requirePassenger = (req, res, next) => {
-  if (req.user?.role !== 'PASSENGER') {
+const requireAdminOrCompany = (req, res, next) => {
+  const allowed = [ROLES.ADMIN, ROLES.COMPANY];
+  if (!allowed.includes(req.user?.role)) {
     return res.status(403).json({
       success: false,
-      message: 'Không có quyền truy cập',
-      requiredRole: 'PASSENGER',
+      message: 'Admin or company access required',
+      requiredRole: allowed.join('|'),
       userRole: req.user?.role
     });
   }
-  next();
+  return next();
+};
+
+const requireCompany = (req, res, next) => {
+  if (req.user?.role !== ROLES.COMPANY) {
+    return res.status(403).json({
+      success: false,
+      message: 'Company access required',
+      requiredRole: ROLES.COMPANY,
+      userRole: req.user?.role
+    });
+  }
+
+  if (req.user?.companyId == null) {
+    return res.status(400).json({ success: false, message: 'Missing companyId for company account' });
+  }
+
+  return next();
+};
+
+const requirePassenger = (req, res, next) => {
+  if (req.user?.role !== ROLES.PASSENGER) {
+    return res.status(403).json({
+      success: false,
+      message: 'Passenger access required',
+      requiredRole: ROLES.PASSENGER,
+      userRole: req.user?.role
+    });
+  }
+  return next();
+};
+
+const requireDriver = (req, res, next) => {
+  if (req.user?.role !== ROLES.DRIVER) {
+    return res.status(403).json({
+      success: false,
+      message: 'Driver access required',
+      requiredRole: ROLES.DRIVER,
+      userRole: req.user?.role
+    });
+  }
+
+  if (req.user?.driverId == null) {
+    return res.status(400).json({ success: false, message: 'Missing driverId for driver account' });
+  }
+
+  if (req.user?.companyId == null) {
+    return res.status(400).json({ success: false, message: 'Missing companyId for driver account' });
+  }
+
+  return next();
 };
 
 module.exports = {
   authenticateToken,
   requireAdmin,
-  requirePassenger
+  requirePassenger,
+  requireAdminOrCompany,
+  requireCompany,
+  requireDriver,
+  authorize,
+  authenticateTokenOptional
 };

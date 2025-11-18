@@ -1,196 +1,378 @@
-import { useEffect, useMemo, useState } from 'react';
-import { adminAPI } from '../../services/admin';
-import './style/ManageTables.css';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
+import { adminAPI, type BusCompany } from '../../services/admin';
+import { useUserStore } from '../../store/user';
+import ROLES from '../../constants/roles';
+import '../../style/table.css';
+import '../../style/admin-mobile.css';
+import { toViStatus, statusVariant } from '../../utils/status';
 
-type BusLite = { id: number; busNumber: string; busType: string; totalSeats: number; isActive?: boolean };
+type BusRow = {
+  id: number;
+  busNumber: string;
+  busType: string;
+  totalSeats: number;
+  isActive: boolean;
+  company?: { id: number; name: string };
+};
+
+type ApiBus = {
+  id: number;
+  busNumber: string;
+  busType: string;
+  totalSeats: number;
+  isActive: boolean;
+  company?: { id: number; name: string };
+};
+
+interface BusFormState {
+  busNumber: string;
+  busType: string;
+  totalSeats: number;
+  facilities: string;
+  isActive: boolean;
+  companyId: string;
+}
+
+const initialForm: BusFormState = {
+  busNumber: '',
+  busType: 'STANDARD',
+  totalSeats: 40,
+  facilities: '',
+  isActive: true,
+  companyId: ''
+};
 
 export default function ManageBuses() {
-  const [buses, setBuses] = useState<BusLite[]>([]);
+  const { user } = useUserStore();
+  const isGlobalAdmin = user?.role === ROLES.ADMIN;
+
+  const [buses, setBuses] = useState<BusRow[]>([]);
+  const [companies, setCompanies] = useState<BusCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [form, setForm] = useState({ busNumber: '', busType: 'STANDARD', totalSeats: 40, facilities: '', isActive: true });
-  const [editing, setEditing] = useState<null | { id: number; busNumber: string; busType: string; totalSeats: number; facilities: string; isActive: boolean }>(null);
+  const [form, setForm] = useState<BusFormState>(initialForm);
+  const [editing, setEditing] = useState<BusRow | null>(null);
 
-  const canSubmit = useMemo(() => form.busNumber && form.busType && form.totalSeats > 0, [form]);
+  const canSubmit = useMemo(() => {
+    if (!form.busNumber.trim() || !form.busType || form.totalSeats <= 0) {
+      return false;
+    }
+    if (isGlobalAdmin && !form.companyId) {
+      return false;
+    }
+    return true;
+  }, [form, isGlobalAdmin]);
 
-  const load = async () => {
+  const loadBuses = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await adminAPI.getBuses({ limit: 100 });
-  setBuses(res.data.buses || []);
-    } catch (e) {
-      console.error(e);
+      if (res.success) {
+        const list: BusRow[] = (res.data?.buses ?? []).map((bus: ApiBus) => ({
+          id: bus.id,
+          busNumber: bus.busNumber,
+          busType: bus.busType,
+          totalSeats: bus.totalSeats,
+          isActive: bus.isActive,
+          company: bus.company ? { id: bus.company.id, name: bus.company.name } : undefined
+        }) as BusRow);
+        setBuses(list);
+      } else {
+        setError('Không thể tải danh sách xe');
+      }
+    } catch (err) {
+      console.error(err);
       setError('Không thể tải danh sách xe');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const loadCompanies = useCallback(async () => {
+    if (!isGlobalAdmin) return;
+    try {
+      const res = await adminAPI.getCompanies({ limit: 100 });
+      if (res.success) {
+        setCompanies(res.data || []);
+      }
+    } catch (err) {
+      console.error('Không thể tải danh sách nhà xe', err);
+    }
+  }, [isGlobalAdmin]);
+
+  useEffect(() => {
+    loadBuses();
+    loadCompanies();
+  }, [loadBuses, loadCompanies]);
+
+  useEffect(() => {
+    if (!isGlobalAdmin && user?.companyId != null) {
+      setForm((prev) => ({
+        ...prev,
+        companyId: String(user.companyId)
+      }));
+    }
+  }, [isGlobalAdmin, user?.companyId]);
+
+  const handleFormChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+    const name = target.name as keyof BusFormState as string;
+    const value = target.value;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value as unknown as string | number
+    }));
   };
 
-  useEffect(() => { load(); }, []);
+  const resetForm = () => {
+    setForm(() => ({
+      ...initialForm,
+      companyId: isGlobalAdmin ? '' : String(user?.companyId ?? '')
+    }));
+    setEditing(null);
+  };
 
-  const onCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!canSubmit) return;
+
     try {
       setLoading(true);
       setError(null);
       setSuccess(null);
-      const payload = {
-        busNumber: form.busNumber.trim(),
-        busType: form.busType,
-        totalSeats: Number(form.totalSeats),
-        facilities: form.facilities.split(',').map(s => s.trim()).filter(Boolean),
-        isActive: !!form.isActive
-      };
-      const res = await adminAPI.createBus(payload);
-      if (res?.success) {
-        setSuccess('Thêm xe thành công!');
-        await load();
-        setForm({ busNumber: '', busType: 'STANDARD', totalSeats: 40, facilities: '', isActive: true });
+
+      const facilitiesArray = form.facilities
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (editing) {
+        const res = await adminAPI.updateBus(editing.id, {
+          busNumber: form.busNumber.trim(),
+          busType: form.busType,
+          totalSeats: Number(form.totalSeats),
+          facilities: facilitiesArray,
+          isActive: form.isActive,
+          companyId: isGlobalAdmin ? Number(form.companyId) : undefined
+        });
+
+        if (res?.success) {
+          setSuccess('Cập nhật xe thành công');
+          await loadBuses();
+          resetForm();
+        } else {
+          setError(res?.message || 'Cập nhật xe thất bại');
+        }
       } else {
-        setError(res?.message || 'Thêm xe thất bại');
+        const res = await adminAPI.createBus({
+          busNumber: form.busNumber.trim(),
+          busType: form.busType,
+          totalSeats: Number(form.totalSeats),
+          facilities: facilitiesArray,
+          isActive: form.isActive,
+          companyId: isGlobalAdmin ? Number(form.companyId) : undefined
+        });
+
+        if (res?.success) {
+          setSuccess('Thêm xe thành công');
+          await loadBuses();
+          resetForm();
+        } else {
+          setError(res?.message || 'Thêm xe thất bại');
+        }
       }
-    } catch (e) {
-      console.error(e);
-      setError('Thêm xe thất bại');
+    } catch (err) {
+      console.error(err);
+      setError('Không thể lưu xe');
     } finally {
       setLoading(false);
     }
   };
 
-  const onStartEdit = (b: BusLite) => {
-    setEditing({ id: b.id, busNumber: b.busNumber, busType: b.busType, totalSeats: b.totalSeats, facilities: '', isActive: b.isActive ?? true });
+  const startEdit = (bus: BusRow) => {
+    setEditing(bus);
+    setForm({
+      busNumber: bus.busNumber,
+      busType: bus.busType,
+      totalSeats: bus.totalSeats,
+      facilities: '',
+      isActive: bus.isActive,
+      companyId: bus.company?.id ? String(bus.company.id) : ''
+    });
   };
 
-  const onUpdate = async () => {
-    if (!editing) return;
+  const handleDelete = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xoá xe này?')) return;
     try {
       setLoading(true);
       setError(null);
-      setSuccess(null);
-      const payload = {
-        busNumber: editing.busNumber.trim(),
-        busType: editing.busType,
-        totalSeats: Number(editing.totalSeats),
-        isActive: !!editing.isActive
-      };
-      const res = await adminAPI.updateBus(editing.id, payload);
-      if (res?.success) {
-        setSuccess('Cập nhật xe thành công!');
-      } else {
-        setError(res?.message || 'Cập nhật xe thất bại');
-      }
-    } catch (e) {
-      console.error(e);
-      setError('Cập nhật xe thất bại');
-    } finally {
-      setLoading(false);
-      setEditing(null);
-      await load();
-    }
-  };
-
-  const onDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa xe này?')) return;
-    try {
-      setLoading(true);
       const res = await adminAPI.deleteBus(id);
-      if (!res?.success) setError(res?.message || 'Xóa xe thất bại');
-    } catch (e) {
-      console.error(e);
-      setError('Xóa xe thất bại');
+      if (!res?.success) {
+        setError(res?.message || 'Xoá xe thất bại');
+      } else {
+        setSuccess('Đã xoá xe');
+        await loadBuses();
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Không thể xoá xe');
     } finally {
       setLoading(false);
-      await load();
     }
   };
 
   return (
-    <div className="container py-6">
-      <h1 className="text-2xl font-semibold mb-4">Quản lý xe</h1>
+    <div className="container py-4 admin-manage-trips">
+      <h1 className="text-2xl fw-semibold mb-4">Quản lý xe</h1>
       {error && <div className="alert alert-danger mb-3">{error}</div>}
       {success && <div className="alert alert-success mb-3">{success}</div>}
 
-      <form onSubmit={onCreate} className="card p-3 mb-5">
-        <h2 className="text-xl mb-3">Thêm xe</h2>
-        <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <div>
-            <label>Số xe</label>
-            <input value={form.busNumber} onChange={e => setForm(f => ({ ...f, busNumber: e.target.value }))} required />
+      <form onSubmit={handleSubmit} className="card p-3 mb-5">
+        <h2 className="text-xl mb-3">{editing ? 'Chỉnh sửa xe' : 'Thêm xe mới'}</h2>
+        <div className="row g-3">
+          <div className="col-12 col-md-4">
+            <label className="form-label">
+              Số xe <span className="text-danger">*</span>
+            </label>
+            <input
+              className="form-control"
+              name="busNumber"
+              value={form.busNumber}
+              onChange={handleFormChange}
+              placeholder="Ví dụ: 51B-12345"
+              required
+            />
           </div>
-          <div>
-            <label>Loại xe</label>
-            <select value={form.busType} onChange={e => setForm(f => ({ ...f, busType: e.target.value }))}>
-              {['STANDARD','DELUXE','LIMOUSINE','SLEEPER'].map(t => <option key={t} value={t}>{t}</option>)}
+          <div className="col-12 col-md-4">
+            <label className="form-label">Loại xe</label>
+            <select className="form-select" name="busType" value={form.busType} onChange={handleFormChange}>
+              {['STANDARD', 'DELUXE', 'LIMOUSINE', 'SLEEPER'].map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
             </select>
           </div>
-          <div>
-            <label>Số ghế</label>
-            <input type="number" min={1} value={form.totalSeats} onChange={e => setForm(f => ({ ...f, totalSeats: Number(e.target.value) }))} />
+          <div className="col-12 col-md-4">
+            <label className="form-label">Tổng số ghế</label>
+            <input
+              className="form-control"
+              name="totalSeats"
+              type="number"
+              min={1}
+              value={form.totalSeats}
+              onChange={handleFormChange}
+            />
           </div>
-          <div>
-            <label>Tiện ích (phân tách dấu phẩy)</label>
-            <input value={form.facilities} onChange={e => setForm(f => ({ ...f, facilities: e.target.value }))} placeholder="WiFi, Nước, Điều hoà" />
+          <div className="col-12 col-md-6">
+            <label className="form-label">Tiện ích (cách nhau dấu phẩy)</label>
+            <input
+              className="form-control"
+              name="facilities"
+              value={form.facilities}
+              onChange={handleFormChange}
+              placeholder="WiFi, Điều hòa"
+            />
+          </div>
+          {isGlobalAdmin && (
+            <div className="col-12 col-md-6">
+              <label className="form-label">
+                Nhà xe <span className="text-danger">*</span>
+              </label>
+              <select className="form-select" name="companyId" value={form.companyId} onChange={handleFormChange} required>
+                <option value="">-- Chọn nhà xe --</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="col-12">
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="bus-active"
+                name="isActive"
+                checked={form.isActive}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    isActive: e.currentTarget.checked
+                  }))
+                }
+              />
+              <label className="form-check-label" htmlFor="bus-active">
+                Đang hoạt động
+              </label>
+            </div>
           </div>
         </div>
-        <div className="mt-3">
-          <button className="btn btn-primary" disabled={loading || !canSubmit}>{loading ? 'Đang lưu...' : 'Thêm xe'}</button>
+        <div className="mt-3 d-flex gap-2">
+          <button className="btn btn-primary" disabled={loading || !canSubmit}>
+            {loading ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Thêm xe'}
+          </button>
+          {editing && (
+            <button type="button" className="btn btn-secondary" onClick={resetForm} disabled={loading}>
+              Hủy
+            </button>
+          )}
         </div>
       </form>
 
       <div className="card p-3">
         <h2 className="text-xl mb-3">Danh sách xe</h2>
         <div className="table-responsive">
-          <table className="table">
+          <table className="table table-striped align-middle">
             <thead>
               <tr>
-                <th>ID</th><th>Số xe</th><th>Loại</th><th>Số ghế</th><th>Trạng thái</th><th>Hành động</th>
+                <th>ID</th>
+                <th>Số xe</th>
+                <th>Loại</th>
+                <th>Tổng ghế</th>
+                <th>Nhà xe</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
-              {buses.map(b => (
-                <tr key={b.id}>
-                  <td>{b.id}</td>
-                  <td>{editing?.id === b.id ? (
-                    <input value={editing.busNumber} onChange={e => setEditing(ed => ed ? { ...ed, busNumber: e.target.value } : ed)} />
-                  ) : b.busNumber}</td>
-                  <td>{editing?.id === b.id ? (
-                    <select value={editing.busType} onChange={e => setEditing(ed => ed ? { ...ed, busType: e.target.value } : ed)}>
-                      {['STANDARD','DELUXE','LIMOUSINE','SLEEPER'].map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  ) : b.busType}</td>
-                  <td>{editing?.id === b.id ? (
-                    <input type="number" min={1} value={editing.totalSeats} onChange={e => setEditing(ed => ed ? { ...ed, totalSeats: Number(e.target.value) } : ed)} />
-                  ) : b.totalSeats}</td>
-                  <td>
-                    {editing?.id === b.id ? (
-                      <select value={editing.isActive ? 'ACTIVE' : 'INACTIVE'} onChange={e => setEditing(ed => ed ? { ...ed, isActive: e.target.value === 'ACTIVE' } : ed)}>
-                        <option value="ACTIVE">Sẵn sàng</option>
-                        <option value="INACTIVE">Chưa sẵn sàng</option>
-                      </select>
-                    ) : (
-                      <span className={b.isActive ? 'status-badge active' : 'status-badge inactive'}>
-                        {b.isActive ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {editing?.id === b.id ? (
-                      <>
-                        <button className="btn btn-primary btn-sm" onClick={onUpdate}>Lưu</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Hủy</button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="btn btn-outline-primary btn-sm" onClick={() => onStartEdit(b)}>Sửa</button>
-                        <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(b.id)}>Xóa</button>
-                      </>
-                    )}
-                  </td>
+              {buses.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>Chưa có xe nào</td>
                 </tr>
-              ))}
+              ) : (
+                buses.map((bus) => (
+                  <tr key={bus.id}>
+                    <td>{bus.id}</td>
+                    <td>{bus.busNumber}</td>
+                    <td>{bus.busType}</td>
+                    <td>{bus.totalSeats}</td>
+                    <td>{bus.company?.name || '-'}</td>
+                    <td>
+                      <span className={`badge bg-${statusVariant(bus.isActive ? 'ACTIVE' : 'INACTIVE')}`}>
+                        {toViStatus(bus.isActive ? 'ACTIVE' : 'INACTIVE')}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="btn btn-sm btn-outline-primary" onClick={() => startEdit(bus)}>
+                        Sửa
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        style={{ marginLeft: 8 }}
+                        onClick={() => handleDelete(bus.id)}
+                      >
+                        Xoá
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -198,3 +380,4 @@ export default function ManageBuses() {
     </div>
   );
 }
+
