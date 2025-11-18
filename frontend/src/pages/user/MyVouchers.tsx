@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import voucherAPI from '../../services/voucher';
@@ -6,25 +7,26 @@ import type { UserVoucher, VoucherStatus } from '../../types/voucher';
 import '../../style/vouchers.css';
 
 const STATUS_LABELS: Record<VoucherStatus, string> = {
-  ACTIVE: 'Còn hiệu lực',
-  EXPIRING: 'Sắp hết hạn',
-  EXPIRED: 'Hết hạn',
-  USED: 'Đã dùng',
-  INACTIVE: 'Ngừng áp dụng',
-  UNKNOWN: 'Không xác định'
+  ACTIVE: 'Con hieu luc',
+  EXPIRING: 'Sap het han',
+  EXPIRED: 'Het han',
+  USED: 'Da dung',
+  INACTIVE: 'Ngung ap dung',
+  UNKNOWN: 'Khong xac dinh',
+  UPCOMING: 'Sap ap dung'
 };
 
 const statusOptions: Array<{ value: VoucherStatus | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'Tất cả trạng thái' },
   { value: 'ACTIVE', label: STATUS_LABELS.ACTIVE },
   { value: 'EXPIRING', label: STATUS_LABELS.EXPIRING },
+  { value: 'UPCOMING', label: STATUS_LABELS.UPCOMING },
   { value: 'USED', label: STATUS_LABELS.USED },
   { value: 'EXPIRED', label: STATUS_LABELS.EXPIRED }
 ];
 
 const formatCurrency = (value?: number | null) =>
   value != null ? `${value.toLocaleString('vi-VN')}đ` : '—';
-
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleDateString('vi-VN') : 'Không giới hạn';
 
@@ -105,7 +107,7 @@ const MyVouchers = () => {
     try {
       const lookup = await voucherAPI.getByCode(normalized);
       if (!lookup.success || !lookup.data?.id) {
-        throw new Error(lookup.message || 'Không tìm thấy voucher.');
+        throw new Error('Khong tim thay voucher.');
       }
 
       const response = await voucherAPI.saveToWallet(lookup.data.id);

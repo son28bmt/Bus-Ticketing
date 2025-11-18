@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
+import ChatWidget from '../components/chat/ChatWidget';
 import '../style/main.css';
 
 type UserLayoutProps = {
@@ -15,6 +16,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
         {children ?? <Outlet />}
       </main>
       <Footer />
+      <ChatWidget />
     </div>
   );
 };

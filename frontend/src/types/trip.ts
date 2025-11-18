@@ -11,6 +11,10 @@ export interface BusCompanyRef {
   id: number;
   name: string;
   code: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankCode?: string;
 }
 
 export interface TripSeat {
@@ -56,6 +60,9 @@ export interface Trip {
   basePrice: number;
   totalSeats: number;
   availableSeats: number;
+  companyId?: number;
+  busId?: number;
+  driverId?: number | null;
   status: string; // e.g., 'SCHEDULED' | 'CANCELLED'
   bus: Bus;
   departureLocation: {
@@ -72,7 +79,17 @@ export interface Trip {
   arrivalLocationDetails?: TripLocationDetails | null;
   route?: string | null;
   routeMeta?: TripRouteMeta | null;
-  company?: { id: number; name: string };
+  company?: BusCompanyRef | null;
+  driver?: {
+    id: number;
+    status?: string;
+    user?: {
+      id: number;
+      name: string;
+      email?: string;
+      phone?: string;
+    };
+  } | null;
   isAvailable?: boolean;
   bookedSeatNumbers?: string[];
 }

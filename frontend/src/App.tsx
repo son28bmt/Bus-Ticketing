@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PrivateRoute } from './components/common';
 import { Profile, Settings } from './components/user';
 
@@ -11,7 +11,7 @@ import News from './pages/user/News';
 import NewsDetail from './pages/user/NewsDetail';
 import Search from './pages/user/Search';
 import TripDetail from './pages/user/TripDetail';
-import Payment from './pages/user/Payment';
+import Payment from './pages/user/Paymentt';
 import PaymentSuccess from './pages/user/PaymentSuccess';
 import VNPayReturn from './pages/user/VNPayReturn';
 import MyTickets from './pages/user/MyTickets';
@@ -40,11 +40,15 @@ import CompanyDashboard from './pages/company/CompanyDashboard';
 import CompanyManageTrips from './pages/company/ManageTrips';
 import CompanyManageBuses from './pages/company/ManageBuses';
 import CompanyManageVouchers from './pages/company/ManageVouchers';
+import CompanyProfile from './pages/company/CompanyProfile';
+import ManageStaff from './pages/company/ManageStaff';
 import CompanyReports from './pages/company/Reports';
 import CompanyManageBookings from './pages/company/ManageBookings';
 import CompanyManageNews from './pages/company/ManageNews';
 import Revenue from './pages/company/Revenue';
 import { ROLES } from './constants/roles';
+import DriverLayout from './layouts/DriverLayout';
+import { DriverTrips } from './pages/driver';
 
 import './index.css';
 
@@ -173,10 +177,23 @@ function App() {
             <Route path="bookings" element={<CompanyManageBookings />} />
             <Route path="news" element={<CompanyManageNews />} />
             <Route path="vouchers" element={<CompanyManageVouchers />} />
+            <Route path="staff" element={<ManageStaff />} />
             <Route path="reports" element={<CompanyReports />} />
             <Route path="revenue" element={<Revenue />} />
-          </Route>
-          {/* Public Routes */}
+            <Route path="profile" element={<CompanyProfile />} />
+        </Route>
+        <Route
+          path="/driver"
+          element={
+            <PrivateRoute allowedRoles={[ROLES.DRIVER]}>
+              <DriverLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route index element={<Navigate to="trips" replace />} />
+          <Route path="trips" element={<DriverTrips />} />
+        </Route>
+        {/* Public Routes */}
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
           <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
@@ -208,25 +225,19 @@ function App() {
 
           <Route path="/payment" element={
             <PublicLayout>
-              <PrivateRoute>
-                <Payment />
-              </PrivateRoute>
+              <Payment />
             </PublicLayout>
           } />
           
           <Route path="/payment/success" element={
             <PublicLayout>
-              <PrivateRoute>
-                <PaymentSuccess />
-              </PrivateRoute>
+              <PaymentSuccess />
             </PublicLayout>
           } />
           
           <Route path="/payment/vnpay/return" element={
             <PublicLayout>
-              <PrivateRoute>
-                <VNPayReturn />
-              </PrivateRoute>
+              <VNPayReturn />
             </PublicLayout>
           } />
           
@@ -292,6 +303,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 

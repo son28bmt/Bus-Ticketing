@@ -53,10 +53,10 @@ const BookingSummary = ({
 
   return (
     <div className="booking-summary-card">
-      <h3>Booking summary</h3>
+      <h3>Đặt vé </h3>
 
       <div className="trip-summary">
-        <h4>Trip details</h4>
+        <h4>Chi tiết chuyến</h4>
         <div className="trip-route">
           <div className="route-info">
             <span className="departure">
@@ -76,23 +76,27 @@ const BookingSummary = ({
         </div>
 
         <div className="trip-details">
+          {/* lấy tên nhà xe từ trip bus company nếu có */}
+          <p>
+            <strong>Nhà Xe</strong> { trip.bus.company ? trip.bus.company.name : 'N/A'}
+          </p>
           <p>
             <strong>Bus:</strong> {trip.bus.busNumber} ({trip.bus.busType})
           </p>
           <p>
-            <strong>Route:</strong> {trip.route}
+            <strong>Chuyến:</strong> {trip.route}
           </p>
         </div>
       </div>
 
       <div className="passenger-summary">
-        <h4>Passenger</h4>
+        <h4>Hành khách</h4>
         <div className="passenger-details">
           <p>
-            <strong>Name:</strong> {passengerInfo.name}
+            <strong>Tên:</strong> {passengerInfo.name}
           </p>
           <p>
-            <strong>Phone:</strong> {passengerInfo.phone}
+            <strong>Điện thoại:</strong> {passengerInfo.phone}
           </p>
           {passengerInfo.email && (
             <p>
@@ -103,7 +107,7 @@ const BookingSummary = ({
       </div>
 
       <div className="seats-summary">
-        <h4>Selected seats</h4>
+        <h4>Ghế đã chọn</h4>
         <div className="selected-seats-list">
           {selectedSeats.map((seat) => (
             <div key={seat.id ?? seat.seatNumber} className="seat-item">
@@ -121,11 +125,11 @@ const BookingSummary = ({
 
       <div className="price-summary">
         <div className="price-row">
-          <span>Subtotal</span>
+          <span>Tạm tính</span>
           <span>{formatPrice(computedSubtotal)}</span>
         </div>
         <div className="price-row">
-          <span>Discount</span>
+          <span>Giảm giá</span>
           <span className={discountAmount > 0 ? 'discount-amount' : ''}>
             {discountAmount > 0 ? `- ${formatPrice(discountAmount)}` : formatPrice(0)}
           </span>
@@ -137,7 +141,7 @@ const BookingSummary = ({
           </div>
         )}
         <div className="price-row total">
-          <span>Total</span>
+          <span>Tổng cộng</span>
           <span className="total-amount">{formatPrice(payable)}</span>
         </div>
       </div>

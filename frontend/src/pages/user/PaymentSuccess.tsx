@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatPrice } from '../../utils/price';
 import { formatTime, formatDate } from '../../utils/formatDate';
@@ -6,7 +6,16 @@ import '../../style/payment-success.css';
 import { useVNPay, type InvoiceData } from '../../hooks/useVNPay';
 import { bookingAPI } from '../../services/booking';
 import type { PaymentProcessData } from '../../types/payment';
+import type { BusCompanyRef } from '../../types/trip';
 import { toViStatus, statusVariant } from '../../utils/status';
+import { useUserStore } from '../../store/user';
+
+const FALLBACK_BANK_INFO = {
+  bankName: import.meta.env.VITE_BANK_NAME || 'ShanBus',
+  bankCode: import.meta.env.VITE_BANK_CODE || 'VCB',
+  accountName: import.meta.env.VITE_BANK_ACCOUNT_NAME || 'SHANBUS',
+  accountNumber: import.meta.env.VITE_BANK_ACCOUNT_NO || '0000000000'
+};
 
 interface LocationState {
   booking: {
@@ -34,6 +43,10 @@ interface LocationState {
     arrivalLocation: string;
     departureTime: string;
     arrivalTime: string;
+    company?: BusCompanyRef | null;
+    bus?: {
+      company?: BusCompanyRef | null;
+    } | null;
   };
 }
 
@@ -43,20 +56,66 @@ export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const locationState = location.state as LocationState;
   const { getInvoice } = useVNPay();
+  const { user } = useUserStore();
 
   // Local state to support invoice-based rendering when location state is absent
   const [booking, setBooking] = useState<LocationState['booking'] | undefined>(locationState?.booking);
   const [payment, setPayment] = useState<LocationState['payment'] | undefined>(locationState?.payment);
   const [trip, setTrip] = useState<LocationState['trip'] | undefined>(locationState?.trip);
-
   const [showQR, setShowQR] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [confirmingTransfer, setConfirmingTransfer] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    let timer: number | undefined;
+  const bankInfo = useMemo(() => {
+  const company = trip?.company ?? trip?.bus?.company ?? null;
+  const noteParts: string[] = [];
+  const prefix = company?.code || 'SHANBUS';
+  if (prefix) {
+    noteParts.push(prefix);
+  }
+  if (booking?.bookingCode) {
+    noteParts.push(booking.bookingCode);
+  }
+  const transferNote = noteParts.join(' ').trim() || 'SHANBUS';
 
-    const bootstrap = async () => {
-      try {
+  if (company) {
+    const hasCustomInfo =
+      company.bankAccountNumber ||
+      company.bankAccountName ||
+      company.bankName ||
+      company.bankCode;
+
+    const normalizedAccountName = company.bankAccountName || company.name || FALLBACK_BANK_INFO.accountName;
+    const normalizedCompanyName = company.name || normalizedAccountName;
+
+    if (hasCustomInfo) {
+      return {
+        bankName: company.bankName || FALLBACK_BANK_INFO.bankName,
+        bankCode: company.bankCode || FALLBACK_BANK_INFO.bankCode,
+        accountName: normalizedAccountName,
+        accountNumber: company.bankAccountNumber || FALLBACK_BANK_INFO.accountNumber,
+        companyName: normalizedCompanyName,
+        transferNote
+      };
+    }
+
+    return {
+      ...FALLBACK_BANK_INFO,
+      companyName: normalizedCompanyName,
+      transferNote
+    };
+  }
+
+  return {
+    ...FALLBACK_BANK_INFO,
+    companyName: 'ShanBus',
+    transferNote
+  };
+  }, [trip, booking?.bookingCode]);
+
+useEffect(() => {
+  const bootstrap = async () => {
+    try {
         // If no booking info from state, try loading from invoice API using paymentId
         if (!booking) {
           const paymentIdParam = searchParams.get('paymentId');
@@ -93,7 +152,9 @@ export default function PaymentSuccess() {
               departureLocation: inv.trip?.from || '',
               arrivalLocation: inv.trip?.to || '',
               departureTime: inv.trip?.departureTime || new Date().toISOString(),
-              arrivalTime: inv.trip?.arrivalTime || new Date().toISOString()
+              arrivalTime: inv.trip?.arrivalTime || new Date().toISOString(),
+              company: locationState?.trip?.company ?? null,
+              bus: locationState?.trip?.bus ?? null
             };
 
             setBooking(mappedBooking);
@@ -102,16 +163,6 @@ export default function PaymentSuccess() {
           }
         }
 
-        // Auto redirect countdown
-        timer = window.setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              navigate('/my-tickets');
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
       } catch {
         // If invoice fetch fails, fallback to home
         navigate('/');
@@ -119,12 +170,7 @@ export default function PaymentSuccess() {
     };
 
     bootstrap();
-
-    return () => {
-      if (timer) window.clearInterval(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
+}, [navigate, user]);
 
   useEffect(() => {
     const finalizePaymentIfNeeded = async () => {
@@ -174,13 +220,46 @@ export default function PaymentSuccess() {
     return labels[method as keyof typeof labels] || method;
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrimaryAction = () => {
+    if (user) {
+      navigate('/my-tickets');
+    } else {
+      navigate('/');
+    }
   };
 
-  const handleDownloadPDF = () => {
-    // Generate PDF (would integrate with jsPDF or similar)
-    alert('Tính năng tải PDF đang phát triển');
+  const handleConfirmTransfer = async () => {
+    if (!booking || !payment) return;
+
+    setConfirmMessage(null);
+    setConfirmingTransfer(true);
+
+    try {
+      const response = await bookingAPI.processPayment(payment.id, {
+        transactionId: `MANUAL-BANK-${Date.now()}`,
+        amount: Number(booking.totalPrice) || 0,
+        paymentMethod: 'BANK_TRANSFER'
+      });
+
+      setBooking(response.data.booking);
+      setPayment({
+        id: response.data.payment.id,
+        paymentCode: response.data.payment.paymentCode,
+        amount: response.data.payment.amount,
+        paymentMethod: 'BANK_TRANSFER',
+        paymentStatus: response.data.payment.paymentStatus
+      });
+      setConfirmMessage({ type: 'success', text: 'Xác nhận thanh toán thành công!' });
+    } catch (error: unknown) {
+      console.error('payment-success:manualConfirm', error);
+      let message = 'Không thể xác nhận thanh toán, vui lòng thử lại.';
+      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.data?.message) {
+        message = (error as any).response.data.message;
+      }
+      setConfirmMessage({ type: 'error', text: message });
+    } finally {
+      setConfirmingTransfer(false);
+    }
   };
 
   if (!booking) {
@@ -303,27 +382,51 @@ export default function PaymentSuccess() {
           </div>
 
           {/* Payment Status Alert */}
-          {payment?.paymentStatus === 'PENDING' && payment?.paymentMethod === 'BANK_TRANSFER' && (
+          {payment?.paymentMethod === 'BANK_TRANSFER' && booking && (
             <div className="payment-alert">
-              <h4>⚠️ Hoàn tất thanh toán</h4>
+              <h4>⚠ Hoan tat thanh toan</h4>
               <div className="bank-transfer-info">
-                <p>Vui lòng chuyển khoản theo thông tin sau:</p>
+                <p>
+                  Vui long chuyen khoan theo thong tin sau{bankInfo.companyName ? (
+                    <> cua <strong>{bankInfo.companyName}</strong></>
+                  ) : ''}:
+                </p>
                 <div className="bank-details">
                   <div className="bank-info">
-                    <p><strong>Ngân hàng:</strong> Vietcombank</p>
-                    <p><strong>Số tài khoản:</strong> 0123456789</p>
-                    <p><strong>Chủ tài khoản:</strong> CONG TY SHANBUS</p>
+                    <p><strong>Ngân hàng:</strong> {bankInfo.bankName}</p>
+                    <p><strong>Số tài khoản:</strong> {bankInfo.accountNumber}</p>
+                    <p><strong>Chủ tài khoản:</strong> {bankInfo.accountName}</p>
                     <p><strong>Số tiền:</strong> {formatPrice(booking.totalPrice)}</p>
-                    <p><strong>Nội dung:</strong> <code>SHANBUS {booking.bookingCode}</code></p>
+                    <p><strong>Mã ngân hàng (VietQR):</strong> {bankInfo.bankCode}</p>
+                    <p><strong>Nội dung:</strong> <code>{bankInfo.transferNote}</code></p>
                   </div>
                 </div>
                 <p className="transfer-note">
-                  💡 <strong>Lưu ý:</strong> Vé sẽ được kích hoạt sau khi chúng tôi nhận được thanh toán (trong vòng 5-10 phút)
+                  ⚠ <strong>ưu ý:</strong> Vé sẽ được kích hoạt sau khi chúng tôi nhận được thanh toán (trong vòng 5-10 phút)
                 </p>
+                {confirmMessage && (
+                  <div className={`alert ${confirmMessage.type === 'success' ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: '12px' }}>
+                    {confirmMessage.text}
+                  </div>
+                )}
+                {payment.paymentStatus !== 'SUCCESS' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary confirm-transfer-btn"
+                    onClick={handleConfirmTransfer}
+                    disabled={confirmingTransfer}
+                    style={{ marginTop: '12px' }}
+                  >
+                    {confirmingTransfer ? 'Dang xac nhan...' : 'Xac nhan da thanh toan'}
+                  </button>
+                ) : (
+                  <div className="alert alert-success" style={{ marginTop: '12px' }}>
+                    Vé đã được xác nhận thanh toán thành công.
+                  </div>
+                )}
               </div>
             </div>
           )}
-
           {payment?.paymentStatus === 'PENDING' && payment?.paymentMethod === 'CASH' && (
             <div className="payment-alert cash-payment">
               <h4>💵 Thanh toán tại bến xe</h4>
@@ -366,39 +469,12 @@ export default function PaymentSuccess() {
           </div>
 
           {/* Action Buttons */}
-          <div className="action-buttons">
-            <button 
-              className="btn btn-outline"
-              onClick={handlePrint}
-            >
-              🖨️ In vé
-            </button>
-            
-            <button 
-              className="btn btn-outline"
-              onClick={handleDownloadPDF}
-            >
-              📄 Tải PDF
-            </button>
-            
+          <div className="action-buttons single">
             <button 
               className="btn btn-primary"
-              onClick={() => navigate('/my-tickets')}
+              onClick={handlePrimaryAction}
             >
-              Xem vé của tôi
-            </button>
-          </div>
-
-          {/* Auto redirect notice */}
-          <div className="redirect-notice">
-            <p>
-              Tự động chuyển đến trang vé của bạn sau <strong>{countdown}</strong> giây
-            </p>
-            <button 
-              className="cancel-redirect"
-              onClick={() => setCountdown(0)}
-            >
-              Hủy tự động chuyển
+              {user ? 'Xem vé của tôi' : 'Về trang chủ'}
             </button>
           </div>
 
@@ -409,7 +485,7 @@ export default function PaymentSuccess() {
               <li>Vui lòng lưu lại mã đặt vé: <strong>{booking.bookingCode}</strong></li>
               <li>Đến bến xe trước giờ khởi hành 30 phút để làm thủ tục lên xe</li>
               <li>Mang theo CCCD/CMND để đối chiếu thông tin</li>
-              <li>Liên hệ hotline <strong>1900-6067</strong> nếu cần hỗ trợ</li>
+              <li>Liên hệ hotline <strong>0915582684 </strong> nếu cần hỗ trợ</li>
               <li>Có thể hủy vé trước giờ khởi hành 2 tiếng (phí hủy 10%)</li>
             </ul>
           </div>

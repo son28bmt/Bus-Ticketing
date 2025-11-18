@@ -6,6 +6,7 @@ const bookingController = require('../controllers/user/booking.controller');
 const paymentController = require('../controllers/user/payment.controller');
 const ticketController = require('../controllers/user/ticket.controller');
 const userVoucherController = require('../controllers/user/voucher.controller');
+const notificationController = require('../controllers/user/notification.controller');
 
 // Auth required for all user routes
 router.use(authenticateToken);
@@ -25,8 +26,12 @@ router.get('/me/bookings', profileController.getMyBookings);
 router.get('/bookings', bookingController.getBookings);
 router.post('/bookings', bookingController.createBooking);
 router.get('/bookings/:code', bookingController.getBookingByCode);
-router.post('/bookings/:id/cancel', bookingController.cancelBooking);
+router.post('/bookings/:id/cancel-request', bookingController.requestCancelBooking);
 router.post('/bookings/:id/pay', bookingController.processPayment);
+
+// Notifications
+router.get('/notifications', notificationController.listNotifications);
+router.patch('/notifications/:id/read', notificationController.markAsRead);
 
 // Payments
 router.post('/payments/vnpay/create-url', paymentController.createVNPayUrl);

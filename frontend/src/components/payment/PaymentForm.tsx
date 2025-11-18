@@ -22,6 +22,7 @@ interface PaymentMethodOption {
 
 const METHOD_OPTIONS: PaymentMethodOption[] = [
   {
+    
     value: 'VNPAY',
     label: 'VNPay',
     description: 'Pay online via VNPay (ATM cards, international cards, QR code)'
@@ -104,24 +105,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
         <div className="payment-summary">
           <div className="summary-row">
-            <span>Subtotal</span>
+            <span>Tạm tính: </span>
             <span>{formatPrice(subtotal)}</span>
           </div>
           <div className="summary-row">
-            <span>Discount</span>
+            <span>Giảm giá: </span>
             <span className={discountAmount > 0 ? 'discount-amount' : ''}>
               {discountAmount > 0 ? `- ${formatPrice(discountAmount)}` : formatPrice(0)}
             </span>
           </div>
           <div className="summary-row total">
-            <span>Amount due</span>
+            <span>Tổng tiền: </span>
             <span>{formatPrice(payableAmount)}</span>
           </div>
         </div>
 
         <div className="payment-actions">
           <button type="submit" className="btn btn-primary btn-large" disabled={isLoading}>
-            {isLoading ? 'Processing...' : `Confirm payment ${formatPrice(payableAmount)}`}
+            {isLoading ? 'Processing...' : `Chuyển qua Trang Thanh Toán ${formatPrice(payableAmount)}`}
           </button>
         </div>
       </form>

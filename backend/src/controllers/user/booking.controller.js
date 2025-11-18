@@ -14,7 +14,8 @@ const {
   Invoice,
   PaymentLog,
   sequelize,
-  Voucher
+  Voucher,
+  BusCompany
 } = require('../../../models');
 
 const { Op } = require('sequelize');
@@ -143,6 +144,11 @@ const serializeTripPayload = (tripInstance) => {
   const departure = normalizeLocation(plainTrip.departureLocation);
   const arrival = normalizeLocation(plainTrip.arrivalLocation);
   const routeMeta = plainTrip.route ? toPlain(plainTrip.route) : null;
+  if (plainTrip.company) {
+    plainTrip.company = toPlain(plainTrip.company);
+  } else if (plainTrip.bus?.company) {
+    plainTrip.company = toPlain(plainTrip.bus.company);
+  }
 
   return {
     ...plainTrip,
@@ -596,27 +602,40 @@ const createBooking = async (req, res) => {
       Number(paymentPayload.amount) ||
       Math.max(0, bookingPayload.totalPrice - bookingPayload.discountAmount);
 
-    const qrInfo = encodeURIComponent(`Thanh toan don ${bookingPayload.bookingCode}`);
-    const qrBank = process.env.VIETQR_BANK_CODE || 'VCB';
-    const qrAccount = process.env.VIETQR_ACCOUNT_NO || '0000000000';
-    const qrAccountName = process.env.VIETQR_ACCOUNT_NAME || 'SHANBUS';
+    const bankSourceCompanyId =
+      bookingPayload?.trip?.company?.id ||
+      bookingPayload.companyId ||
+      bookingPayload?.trip?.bus?.company?.id ||
+      bookingPayload?.trip?.bus?.companyId;
 
-    const recipientEmail =
-      (bookingPayload.passengerEmail && bookingPayload.passengerEmail.trim()) ||
-      (req.user && req.user.email);
-
-    if (recipientEmail) {
-      mailService
-        .sendBookingConfirmation(bookingWithDetails, {
-          email: recipientEmail,
-          name: bookingPayload.passengerName,
-          discountAmount: bookingPayload.discountAmount,
-          voucher: voucherPayload
-        })
-        .catch((err) => {
-          console.warn('booking.confirmation email failed', err);
-        });
+    let companyBankRecord = null;
+    if (bankSourceCompanyId) {
+      companyBankRecord = await BusCompany.findByPk(bankSourceCompanyId, {
+        attributes: ['id', 'name', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
+      });
     }
+
+    const fallbackBankInfo = {
+      bankName: process.env.VIETQR_BANK_NAME || 'ShanBus',
+      bankCode: process.env.VIETQR_BANK_CODE || 'VCB',
+      accountNumber: process.env.VIETQR_ACCOUNT_NO || '0000000000',
+      accountName: process.env.VIETQR_ACCOUNT_NAME || 'SHANBUS'
+    };
+
+    const bankInfo = {
+      bankName: companyBankRecord?.bankName || fallbackBankInfo.bankName,
+      bankCode: companyBankRecord?.bankCode || fallbackBankInfo.bankCode,
+      accountName:
+        companyBankRecord?.bankAccountName ||
+        companyBankRecord?.bankName ||
+        fallbackBankInfo.accountName,
+      accountNumber: companyBankRecord?.bankAccountNumber || fallbackBankInfo.accountNumber
+    };
+
+    const qrInfo = encodeURIComponent(`Thanh toan don ${bookingPayload.bookingCode}`);
+    const qrBank = bankInfo.bankCode;
+    const qrAccount = bankInfo.accountNumber;
+    const qrAccountName = bankInfo.accountName;
 
     res.status(201).json({
       success: true,
@@ -631,11 +650,13 @@ const createBooking = async (req, res) => {
           paymentMethod: paymentPayload.paymentMethod,
           paymentStatus: paymentPayload.paymentStatus,
           voucherId: paymentPayload.voucherId,
+           bankInfo,
           qrImageUrl: `https://img.vietqr.io/image/${qrBank}-${qrAccount}-qr_only.png?amount=${payableAmount}&addInfo=${qrInfo}`,
           vietqr: {
             bankCode: qrBank,
             accountNo: qrAccount,
             accountName: qrAccountName,
+            bankName: bankInfo.bankName,
             amount: payableAmount,
             addInfo: `Thanh toan don ${bookingPayload.bookingCode}`
           }
@@ -684,6 +705,11 @@ const buildBookingsQueryInclude = ({ includePayments = true } = {}) => {
       model: Trip,
       as: 'trip',
       include: [
+        {
+          model: BusCompany,
+          as: 'company',
+          attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
+        },
         { model: Bus, as: 'bus' },
         { model: Location, as: 'departureLocation', attributes: ['id', 'name', 'province'] },
         { model: Location, as: 'arrivalLocation', attributes: ['id', 'name', 'province'] },
@@ -895,114 +921,90 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
-const cancelBooking = async (req, res) => {
+const requestCancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
+    const { reason, note } = req.body || {};
 
-    console.log('user.booking#cancelBooking payload:', id);
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui long chon ly do huy ve.' });
+    }
 
-    const booking = await sequelize.transaction(async (transaction) => {
-      const record = await Booking.findOne({
-        where: {
-          id,
-          userId: req.user.id
-        },
-        include: [
-          {
-            model: Trip,
-            as: 'trip',
-            lock: transaction.LOCK.UPDATE
-          }
-        ],
-        transaction,
-        lock: transaction.LOCK.UPDATE
-      });
-
-      if (!record) {
-        const notFoundError = new Error('Booking not found.');
-        notFoundError.status = 404;
-        throw notFoundError;
-      }
-
-      if (record.bookingStatus === 'CANCELLED') {
-        const duplicateError = new Error('Booking has already been cancelled.');
-        duplicateError.status = 400;
-        throw duplicateError;
-      }
-
-      if (record.bookingStatus === 'COMPLETED') {
-        const completedError = new Error('Completed bookings cannot be cancelled.');
-        completedError.status = 400;
-        throw completedError;
-      }
-
-      const now = Date.now();
-      const departureTime = record.trip ? new Date(record.trip.departureTime).getTime() : undefined;
-      if (Number.isFinite(departureTime)) {
-        const hoursUntilTrip = (departureTime - now) / (1000 * 60 * 60);
-        if (hoursUntilTrip < 2) {
-          const windowError = new Error('Bookings can only be cancelled up to 2 hours before departure.');
-          windowError.status = 400;
-          throw windowError;
-        }
-      }
-
-      const tripInstance =
-        record.trip ||
-        (await Trip.findByPk(record.tripId, {
-          transaction,
-          lock: transaction.LOCK.UPDATE
-        }));
-
-      const seatsToRelease = Array.isArray(record.seatNumbers) ? record.seatNumbers.length : 0;
-      if (tripInstance) {
-        const updatedSeats = Math.min(tripInstance.totalSeats, tripInstance.availableSeats + seatsToRelease);
-        await tripInstance.update({ availableSeats: updatedSeats }, { transaction });
-      }
-
-      const updatedBooking = await record.update(
+    const record = await Booking.findOne({
+      where: {
+        id,
+        userId: req.user.id
+      },
+      include: [
         {
-          bookingStatus: 'CANCELLED',
-          paymentStatus: record.paymentStatus === 'PAID' ? 'REFUNDED' : 'CANCELLED'
-        },
-        { transaction }
-      );
-
-      return updatedBooking.id;
+          model: Trip,
+          as: 'trip'
+        }
+      ]
     });
 
-    console.log('user.booking#cancelBooking completed:', booking);
+    if (!record) {
+      return res.status(404).json({ success: false, message: 'Khong tim thay ve.' });
+    }
+
+    if (record.bookingStatus === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ve da hoan thanh khong the huy.'
+      });
+    }
+
+    if (record.bookingStatus === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ve da duoc huy truoc do.'
+      });
+    }
+
+    if (record.bookingStatus === 'CANCEL_REQUESTED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Yeu cau huy ve dang cho xu ly.'
+      });
+    }
+
+    const departureTime = record.trip ? new Date(record.trip.departureTime).getTime() : null;
+    if (Number.isFinite(departureTime)) {
+      const hoursUntilTrip = (departureTime - Date.now()) / (1000 * 60 * 60);
+      if (hoursUntilTrip < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ve chi co the huy truoc gio khoi hanh 2h.'
+        });
+      }
+    }
+
+    const shouldFlagRefund = record.paymentStatus === 'PAID' || record.paymentStatus === 'REFUND_PENDING';
+    const userNote = note ? String(note).trim() : '';
+    const combinedNotes = [record.notes, userNote ? `[User] ${userNote}` : ''].filter(Boolean).join('\n');
+
+    await record.update({
+      bookingStatus: 'CANCEL_REQUESTED',
+      paymentStatus: shouldFlagRefund ? 'REFUND_PENDING' : record.paymentStatus,
+      cancelReason: reason,
+      notes: combinedNotes
+    });
 
     const hydratedBooking = await findBookingForUser({
-      id: booking,
+      id: record.id,
       userId: req.user.id
     });
 
     res.json({
       success: true,
-      message: 'Booking cancelled successfully.',
+      message: 'Da gui yeu cau huy ve. Vui long cho nha xe xac nhan.',
       booking: serializeBookingPayload(hydratedBooking)
     });
   } catch (error) {
-    console.error('✖ Cancel booking error:', error);
-
-    if (error.status === 404) {
-      return res.status(404).json({
-        success: false,
-        message: error.message || 'Booking not found.'
-      });
-    }
-
-    if (error.status === 400) {
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Unable to cancel booking.'
-      });
-    }
-
+    console.error('requestCancelBooking error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error while cancelling booking.',
+      message: 'Khong the gui yeu cau huy ve',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -1088,6 +1090,28 @@ const processPayment = async (req, res) => {
       include: buildBookingsQueryInclude()
     });
 
+    const serializedBooking = serializeBookingPayload(bookingWithTrip);
+
+    if (payment.paymentStatus === 'SUCCESS' && serializedBooking) {
+      const recipientEmail =
+        (serializedBooking.passengerEmail && serializedBooking.passengerEmail.trim()) ||
+        (bookingWithTrip?.user && bookingWithTrip.user.email);
+
+      if (recipientEmail) {
+        mailService
+          .sendBookingConfirmation(serializedBooking, {
+            email: recipientEmail,
+            name: serializedBooking.passengerName,
+            discountAmount: serializedBooking.discountAmount,
+            voucher: serializedBooking.voucher,
+            trip: serializedBooking.trip
+          })
+          .catch((err) => {
+            console.warn('booking.payment email failed', err.message || err);
+          });
+      }
+    }
+
     res.json({
       success: true,
       message: 'Thanh toan thanh cong',
@@ -1100,7 +1124,7 @@ const processPayment = async (req, res) => {
           amount: Number(payment.amount) || 0,
           discountAmount: Number(payment.discountAmount) || 0
         },
-        booking: serializeBookingPayload(bookingWithTrip)
+        booking: serializedBooking
       }
     });
   } catch (error) {
@@ -1119,7 +1143,7 @@ module.exports = {
   getBookingById,
   getBookingByCode,
   updateBookingStatus,
-  cancelBooking,
+  requestCancelBooking,
   processPayment,
   serializeBookingPayload,
   buildBookingsQueryInclude

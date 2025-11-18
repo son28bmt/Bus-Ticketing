@@ -1,6 +1,6 @@
 export type VoucherDiscountType = 'PERCENT' | 'AMOUNT';
 
-export type VoucherStatus = 'ACTIVE' | 'EXPIRING' | 'EXPIRED' | 'USED' | 'INACTIVE' | 'UNKNOWN';
+export type VoucherStatus = 'ACTIVE' | 'EXPIRING' | 'EXPIRED' | 'USED' | 'INACTIVE' | 'UPCOMING' | 'UNKNOWN';
 
 export interface VoucherCompany {
   id: number;

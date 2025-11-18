@@ -7,15 +7,17 @@ type MenuItem = {
 };
 
 const items: MenuItem[] = [
-  { id: 'dashboard', title: 'Tổng quan',  path: '/company/dashboard' },
-  { id: 'trips', title: 'Chuyến xe',  path: '/company/trips' },
-  { id: 'buses', title: 'Xe',  path: '/company/buses' },
-  { id: 'bookings', title: 'Đặt vé',  path: '/company/bookings' },
-  { id: 'news', title: 'Tin tức',  path: '/company/news' },
+  { id: 'dashboard', title: 'Tổng quan', path: '/company/dashboard' },
+  { id: 'trips', title: 'Chuyến xe', path: '/company/trips' },
+  { id: 'buses', title: 'Xe', path: '/company/buses' },
+  { id: 'bookings', title: 'Đặt vé', path: '/company/bookings' },
+  { id: 'news', title: 'Tin tức', path: '/company/news' },
   { id: 'vouchers', title: 'Voucher', path: '/company/vouchers' },
-  { id: 'revenue', title: 'Doanh thu',  path: '/company/revenue' },
-  { id: 'reports', title: 'Báo cáo',  path: '/company/reports' },
-  { id: 'home', title: 'Trang Chủ',  path: '/' },
+  { id: 'staff', title: 'Nhân viên', path: '/company/staff' },
+  { id: 'revenue', title: 'Doanh thu', path: '/company/revenue' },
+  { id: 'reports', title: 'Báo cáo', path: '/company/reports' },
+  { id: 'profile', title: 'Thông tin nhà xe', path: '/company/profile' },
+  { id: 'home', title: 'Trang chủ', path: '/' }
 ];
 
 const CompanySidebar = () => {
@@ -23,15 +25,15 @@ const CompanySidebar = () => {
   return (
     <aside className="company-sidebar">
       <nav>
-        <ul style={{ textAlign:"end" }}>
-          {items.map((it) => (
-            <li key={it.id}>
+        <ul style={{ textAlign: 'end' }}>
+          {items.map(item => (
+            <li key={item.id}>
               <NavLink
-                to={it.path}
-                className={({ isActive }) => `nav-link${isActive || pathname === it.path ? ' active' : ''}`}
+                to={item.path}
+                className={({ isActive }) => `nav-link${isActive || pathname === item.path ? ' active' : ''}`}
                 end
               >
-                <span>{it.title}</span>
+                <span>{item.title}</span>
               </NavLink>
             </li>
           ))}

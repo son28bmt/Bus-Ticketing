@@ -70,11 +70,11 @@ const Booking = (sequelize) => {
       }
     },
     paymentStatus: {
-      type: DataTypes.ENUM('PENDING', 'PAID', 'CANCELLED', 'REFUNDED'),
+      type: DataTypes.ENUM('PENDING', 'PAID', 'CANCELLED', 'REFUNDED', 'REFUND_PENDING'),
       defaultValue: 'PENDING'
     },
     bookingStatus: {
-      type: DataTypes.ENUM('CONFIRMED', 'CANCELLED', 'COMPLETED'),
+      type: DataTypes.ENUM('CONFIRMED', 'CANCELLED', 'COMPLETED', 'CANCEL_REQUESTED'),
       defaultValue: 'CONFIRMED'
     },
     paymentMethod: {
@@ -84,6 +84,15 @@ const Booking = (sequelize) => {
     notes: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    cancelReason: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    refundAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: null
     },
     guestNotes: {
       type: DataTypes.JSON,

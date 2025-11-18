@@ -32,6 +32,20 @@ export interface BookingStatsResponse {
   message?: string;
 }
 
+export interface DriverSummary {
+  id: number;
+  companyId: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  licenseNumber?: string | null;
+  phone?: string | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+}
+
 export interface AdminVoucherListResponse {
   success: boolean;
   data: Voucher[];
@@ -95,6 +109,10 @@ export const adminAPI = {
   getTripDetails: async (id: number) => {
     const res = await api.get(`/admin/trips/${id}/details`);
     return res.data;
+  },
+  getDrivers: async (params?: Record<string, unknown>) => {
+    const res = await api.get('/admin/drivers', { params });
+    return res.data as Paginated<{ drivers: DriverSummary[] }>;
   },
 
   // Buses

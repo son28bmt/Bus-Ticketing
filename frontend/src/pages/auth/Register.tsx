@@ -80,15 +80,16 @@ export default function Register() {
     }
 
     try {
-      await register({
+      const payload = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         password: formData.password
-      });
+      };
+
+      await register(payload);
       
-      // Redirect to home page after successful registration
-      navigate('/');
+      navigate('/login', { state: { email: payload.email } });
     } catch (error) {
       console.error('Registration error:', error);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import '../../style/search.css';
 import { tripAPI } from '../../services/http';
@@ -30,6 +30,8 @@ const Search: React.FC = () => {
   const [availableLocations, setAvailableLocations] = useState<{ departure: Location[]; arrival: Location[] }>({ departure: [], arrival: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allTripsPage, setAllTripsPage] = useState(1);
 
   // Search form state
   const [searchForm, setSearchForm] = useState({
@@ -53,6 +55,41 @@ const Search: React.FC = () => {
     companies: [] as string[],
     priceRange: { min: 0, max: 10000000 }
   });
+
+  const PAGE_SIZE = 6;
+  const ALL_TRIPS_PAGE_SIZE = 8;
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredTrips.length / PAGE_SIZE)),
+    [filteredTrips.length]
+  );
+
+  const paginatedTrips = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredTrips.slice(start, start + PAGE_SIZE);
+  }, [filteredTrips, currentPage]);
+
+  const allTripsTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(allTrips.length / ALL_TRIPS_PAGE_SIZE)),
+    [allTrips.length]
+  );
+
+  const paginatedAllTrips = useMemo(() => {
+    const start = (allTripsPage - 1) * ALL_TRIPS_PAGE_SIZE;
+    return allTrips.slice(start, start + ALL_TRIPS_PAGE_SIZE);
+  }, [allTrips, allTripsPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    if (allTripsPage > allTripsTotalPages) {
+      setAllTripsPage(allTripsTotalPages);
+    }
+  }, [allTripsTotalPages, allTripsPage]);
 
   // ? Load locations with useCallback (no dependencies needed)
   const loadLocations = useCallback(async () => {
@@ -180,6 +217,7 @@ const Search: React.FC = () => {
     }
 
     setFilteredTrips(filtered);
+    setCurrentPage(1);
   }, [trips, filters.busType, filters.priceRange.min, filters.priceRange.max, filters.departureTime, filters.company]);
 
   // ? Load locations on mount
@@ -200,7 +238,8 @@ const Search: React.FC = () => {
         });
 
         if (response.success) {
-          setAllTrips(upcomingTrips);
+        setAllTrips(upcomingTrips);
+        setAllTripsPage(1);
         } else {
           setAllTrips(upcomingTrips);
           if (response.message) setAllTripsError(response.message);
@@ -635,7 +674,53 @@ const Search: React.FC = () => {
             {/* Trip Results */}
             {!loading && filteredTrips.length > 0 && (
               <div className="trip-results">
-                {filteredTrips.map(renderTripCard)}
+                {paginatedTrips.map(renderTripCard)}
+              </div>
+            )}
+
+            {!loading && !error && totalPages > 1 && (
+              <div className="pagination-controls">
+                <button
+                  className="pagination-btn"
+                  onClick={() => {
+                    const next = Math.max(1, currentPage - 1);
+                    if (next !== currentPage) {
+                      setCurrentPage(next);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  disabled={currentPage === 1}
+                >
+                  Truoc
+                </button>
+                {Array.from({ length: totalPages }).map((_, index) => {
+                  const page = index + 1;
+                  return (
+                    <button
+                      key={page}
+                      className={`pagination-btn ${page === currentPage ? 'active' : ''}`}
+                      onClick={() => {
+                        setCurrentPage(page);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                <button
+                  className="pagination-btn"
+                  onClick={() => {
+                    const next = Math.min(totalPages, currentPage + 1);
+                    if (next !== currentPage) {
+                      setCurrentPage(next);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  disabled={currentPage === totalPages}
+                >
+                  Sau
+                </button>
               </div>
             )}
 
@@ -666,7 +751,53 @@ const Search: React.FC = () => {
 
               {!loadingAllTrips && !allTripsError && allTrips.length > 0 && (
                 <div className="trip-results">
-                  {allTrips.map(renderTripCard)}
+                  {paginatedAllTrips.map(renderTripCard)}
+                </div>
+              )}
+
+              {!loadingAllTrips && !allTripsError && allTripsTotalPages > 1 && (
+                <div className="pagination-controls">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => {
+                      const next = Math.max(1, allTripsPage - 1);
+                      if (next !== allTripsPage) {
+                        setAllTripsPage(next);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    disabled={allTripsPage === 1}
+                  >
+                    Truoc
+                  </button>
+                  {Array.from({ length: allTripsTotalPages }).map((_, index) => {
+                    const page = index + 1;
+                    return (
+                      <button
+                        key={page}
+                        className={`pagination-btn ${page === allTripsPage ? 'active' : ''}`}
+                        onClick={() => {
+                          setAllTripsPage(page);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                  <button
+                    className="pagination-btn"
+                    onClick={() => {
+                      const next = Math.min(allTripsTotalPages, allTripsPage + 1);
+                      if (next !== allTripsPage) {
+                        setAllTripsPage(next);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    disabled={allTripsPage === allTripsTotalPages}
+                  >
+                    Sau
+                  </button>
                 </div>
               )}
             </section>

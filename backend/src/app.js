@@ -61,7 +61,8 @@ app.use((req, res) => {
       '/api/auth',
       '/api/trips',
       '/api/bookings',
-      '/api/admin'
+      '/api/admin',
+      '/api/chat'
     ]
   });
 });

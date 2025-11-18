@@ -46,45 +46,6 @@ const calculateDiscount = (voucher, orderAmount) => {
   return 0;
 };
 
-const formatVoucherResponse = (voucher, discount) => {
-  const payload = {
-    id: voucher.id,
-    code: voucher.code,
-    name: voucher.name,
-    description: voucher.description,
-    discountType: voucher.discountType,
-    discountValue: Number(voucher.discountValue),
-    discountAmount: discount,
-    minOrderValue: voucher.minOrderValue != null ? Number(voucher.minOrderValue) : null,
-    maxDiscount: voucher.maxDiscount != null ? Number(voucher.maxDiscount) : null,
-    companyId: voucher.companyId,
-    startDate: voucher.startDate,
-    endDate: voucher.endDate,
-    usageLimit: voucher.usageLimit != null ? Number(voucher.usageLimit) : null,
-    usagePerUser: voucher.usagePerUser != null ? Number(voucher.usagePerUser) : null,
-    usedCount: voucher.usedCount != null ? Number(voucher.usedCount) : 0,
-    isActive: voucher.isActive,
-    metadata: voucher.metadata
-  };
-
-  if (voucher.company) {
-    payload.company = {
-      id: voucher.company.id,
-      name: voucher.company.name
-    };
-  }
-
-  if (voucher.creator) {
-    payload.creator = {
-      id: voucher.creator.id,
-      name: voucher.creator.name,
-      email: voucher.creator.email
-    };
-  }
-
-  return payload;
-};
-
 const findVoucherByCode = async (code, options = {}) => {
   const { companyId, transaction } = options || {};
   const normalized = normalizeCode(code || voucherInstance?.code);
@@ -341,6 +302,8 @@ const getVoucherStatus = (voucher, { now = moment(), userVoucher } = {}) => {
     return 'UNKNOWN';
   }
 
+  const currentMoment = moment(now);
+
   if (userVoucher?.isUsed) {
     return 'USED';
   }
@@ -349,18 +312,73 @@ const getVoucherStatus = (voucher, { now = moment(), userVoucher } = {}) => {
     return 'INACTIVE';
   }
 
-  if (!isWithinDateRange(voucher, now)) {
+  const startMoment = voucher.startDate ? moment(voucher.startDate) : null;
+  const endMoment = voucher.endDate ? moment(voucher.endDate) : null;
+
+  if (startMoment && startMoment.isAfter(currentMoment)) {
+    return 'UPCOMING';
+  }
+
+  if (!isWithinDateRange(voucher, currentMoment)) {
     return 'EXPIRED';
   }
 
-  if (voucher.endDate) {
-    const daysDiff = moment(voucher.endDate).endOf('day').diff(now, 'days');
+  if (endMoment) {
+    const daysDiff = endMoment.endOf('day').diff(currentMoment, 'days');
     if (daysDiff >= 0 && daysDiff <= 3) {
       return 'EXPIRING';
     }
   }
 
   return 'ACTIVE';
+};
+
+const formatVoucherResponse = (voucher, discount) => {
+  const now = moment();
+  const status = getVoucherStatus(voucher, { now });
+  const endMoment = voucher?.endDate ? moment(voucher.endDate) : null;
+  const daysToExpire = endMoment
+    ? endMoment.clone().startOf('day').diff(now.clone().startOf('day'), 'days')
+    : null;
+
+  const payload = {
+    id: voucher.id,
+    code: voucher.code,
+    name: voucher.name,
+    description: voucher.description,
+    discountType: voucher.discountType,
+    discountValue: Number(voucher.discountValue),
+    discountAmount: discount,
+    minOrderValue: voucher.minOrderValue != null ? Number(voucher.minOrderValue) : null,
+    maxDiscount: voucher.maxDiscount != null ? Number(voucher.maxDiscount) : null,
+    companyId: voucher.companyId,
+    startDate: voucher.startDate,
+    endDate: voucher.endDate,
+    usageLimit: voucher.usageLimit != null ? Number(voucher.usageLimit) : null,
+    usagePerUser: voucher.usagePerUser != null ? Number(voucher.usagePerUser) : null,
+    usedCount: voucher.usedCount != null ? Number(voucher.usedCount) : 0,
+    isActive: voucher.isActive,
+    metadata: voucher.metadata,
+    status,
+    daysToExpire
+  };
+
+  if (voucher.company) {
+    payload.company = {
+      id: voucher.company.id,
+      name: voucher.company.name
+    };
+  }
+
+  if (voucher.creator) {
+    payload.creator = {
+      id: voucher.creator.id,
+      name: voucher.creator.name,
+      email: voucher.creator.email
+    };
+  }
+
+  return payload;
 };
 
 const serializeUserVoucher = (userVoucher, { now = moment(), orderAmount } = {}) => {
@@ -507,4 +525,3 @@ module.exports = {
   serializeUserVoucher,
   getAvailableVouchers
 };
-

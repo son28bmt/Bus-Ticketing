@@ -19,7 +19,7 @@ interface LocationState {
 
 interface AppliedVoucherState {
   voucher: Voucher;
-  source: 'client' | 'server';
+  source: 'client' | 'server' | 'list';
 }
 
 const DEFAULT_PAYMENT_METHOD: PaymentMethod = 'BANK_TRANSFER';
@@ -214,7 +214,7 @@ export default function Payment() {
     const trimmedPhone = passengerInfo.phone.trim();
 
     if (!trimmedName) {
-      setFormError('Vui lòng nhập họ tên hành khách.');
+      setFormError('Vui lòng nhập tên hành khách.');
       return;
     }
 
@@ -273,10 +273,9 @@ export default function Payment() {
     }
   };
 
-  const disabledPaymentMethods: PaymentMethod[] = [];
-  if (!user) {
-    disabledPaymentMethods.push('VNPAY');
-  }
+  // if (!user) {
+
+  // }
 
   const showGuestPrompt = !user && !guestNoticeDismissed;
   const isSubmitting = isLoading || vnpayLoading || voucherLoading;
@@ -308,7 +307,7 @@ export default function Payment() {
             <div className="guest-checkout-spinner" />
             <div className="guest-checkout-content">
               <h3>Đặt vé nhanh không cần đăng nhập</h3>
-              <p>Đăng nhập để dữ liệu lưu lịch sử, áp dụng voucher đặc quyền và thanh toán VNPay.</p>
+              <p>Đăng nhập để lưu lịch sử, quản lý vé và tận dụng các voucher cá nhân.</p>
               <div className="guest-checkout-actions">
                 <button
                   type="button"
@@ -341,7 +340,7 @@ export default function Payment() {
                     value={passengerInfo.name}
                     onChange={(event) => handlePassengerInfoChange('name', event.target.value)}
                     className="form-control"
-                    placeholder="nhập họ và tên"
+                    placeholder="Nhập họ và tên"
                   />
                 </div>
                 <div className="form-group">
@@ -378,7 +377,7 @@ export default function Payment() {
             </div>
 
             <div className="voucher-card">
-              <h3>Voucher ưu đãi</h3>
+              <h3>Voucher Ưu đãi</h3>
               <div className="voucher-form">
                 <input
                   type="text"
@@ -427,7 +426,7 @@ export default function Payment() {
                           className={`available-voucher-item${entry.canApply ? '' : ' disabled'}`}
                         >
                           <div className="available-voucher-info">
-                            <span className="voucher-code">{voucher?.code ?? '—'}</span>
+                            <span className="voucher-code">{voucher?.code ?? 'Áp Dụng'}</span>
                             <span>{voucher?.description ?? 'Ưu đãi dành cho chuyến đi của bạn.'}</span>
                             <div className="voucher-meta">
                               <span>
@@ -437,7 +436,7 @@ export default function Payment() {
                                   : Number(voucher?.discountValue || 0).toLocaleString('vi-VN') + 'đ'}
                               </span>
                               {voucher?.minOrderValue != null && (
-                                <span>🧾 Tối thiểu {voucher.minOrderValue.toLocaleString('vi-VN')}đ</span>
+                                <span>🛼 Tối thiểu {voucher.minOrderValue.toLocaleString('vi-VN')}đ</span>
                               )}
                               {voucher?.maxDiscount != null && voucher.discountType === 'PERCENT' && (
                                 <span>🎯 Giảm tối đa {voucher.maxDiscount.toLocaleString('vi-VN')}đ</span>
@@ -468,23 +467,17 @@ export default function Payment() {
               </div>
             </div>
 
-            <PaymentForm
-              subtotal={subtotal}
+              <PaymentForm
+                subtotal={subtotal}
               discountAmount={discountAmount}
               payableAmount={payableAmount}
               selectedMethod={paymentMethod}
-              onPaymentMethodChange={(method) => {
-                if (!user && method === 'VNPAY') {
-                  setVoucherMessage({ type: 'error', text: 'Đang nhập dữ liệu, vui lòng sử dụng VNPay.' });
-                  return;
-                }
-                setPaymentMethod(method);
-              }}
+              onPaymentMethodChange={setPaymentMethod}
               onSubmit={handleSubmitBooking}
               isLoading={isSubmitting}
-              disabledMethods={disabledPaymentMethods}
             />
           </div>
+
 
           <div className="payment-summary">
             {trip && (
@@ -504,11 +497,3 @@ export default function Payment() {
     </div>
   );
 }
-
-
-
-
-
-
-
-

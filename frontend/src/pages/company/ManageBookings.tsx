@@ -3,6 +3,7 @@ import { companyAPI } from '../../services/company';
 import type { UserBooking } from '../../types/payment';
 import '../../style/table.css';
 import { formatPrice } from '../../utils/price';
+import { toViStatus, statusVariant } from '../../utils/status';
 import BookingDetailModal from '../../components/common/BookingDetailModal';
 
 type FilterState = {
@@ -19,6 +20,23 @@ const initialFilters: FilterState = {
 
 const DEFAULT_LIMIT = 20;
 
+const BOOKING_STATUS_FILTERS = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+  { value: 'COMPLETED', label: 'Đã hoàn tất' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+  { value: 'CANCEL_REQUESTED', label: 'Chờ xác nhận hủy' }
+];
+
+const PAYMENT_STATUS_FILTERS = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'PAID', label: 'Đã thanh toán' },
+  { value: 'PENDING', label: 'Chờ thanh toán' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+  { value: 'REFUNDED', label: 'Đã hoàn tiền' },
+  { value: 'REFUND_PENDING', label: 'Chờ hoàn tiền' }
+];
+
 export default function ManageBookings() {
   const [bookings, setBookings] = useState<UserBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +45,11 @@ export default function ManageBookings() {
   const [selectedBooking, setSelectedBooking] = useState<UserBooking | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [approvalBooking, setApprovalBooking] = useState<UserBooking | null>(null);
+  const [approvalNote, setApprovalNote] = useState('');
+  const [approvalRefund, setApprovalRefund] = useState(false);
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -86,6 +109,52 @@ export default function ManageBookings() {
     setDetailLoading(false);
   };
 
+  const handleOpenApproval = (booking: UserBooking, options?: { refund?: boolean }) => {
+    setApprovalBooking(booking);
+    setApprovalNote('');
+    setApprovalError(null);
+    setApprovalRefund(
+      options?.refund ??
+        (booking.paymentStatus === 'REFUND_PENDING' || booking.paymentStatus === 'PAID')
+    );
+  };
+
+  const handleCloseApproval = () => {
+    setApprovalBooking(null);
+    setApprovalNote('');
+    setApprovalError(null);
+    setApprovalRefund(false);
+  };
+
+  const handleSubmitApproval = async () => {
+    if (!approvalBooking) return;
+    try {
+      setApprovalLoading(true);
+      setApprovalError(null);
+      const response = await companyAPI.approveCancellation(approvalBooking.id, {
+        note: approvalNote,
+        shouldRefund: approvalRefund
+      });
+      if (!response?.success || !response.data) {
+        throw new Error(response?.message || 'Không thể xử lý yêu cầu hủy.');
+      }
+      const updatedBooking = response.data;
+      setBookings((prev) =>
+        prev.map((booking) => (booking.id === updatedBooking.id ? updatedBooking : booking))
+      );
+      if (selectedBooking?.id === updatedBooking.id) {
+        setSelectedBooking(updatedBooking);
+      }
+      handleCloseApproval();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Không thể xác nhận hủy vé. Vui lòng thử lại sau.';
+      setApprovalError(message);
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
+
   return (
     <div className="container py-5">
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -134,29 +203,30 @@ export default function ManageBookings() {
           </div>
           <div className="col-12 col-md-4">
             <label className="form-label">Trạng thái đặt vé</label>
-            <select
+                        <select
               className="form-select"
               value={filters.status}
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
             >
-              <option value="ALL">Tất cả</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="COMPLETED">Đã hoàn tất</option>
-              <option value="CANCELLED">Đã hủy</option>
+              {BOOKING_STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="col-12 col-md-4">
             <label className="form-label">Trạng thái thanh toán</label>
-            <select
+                        <select
               className="form-select"
               value={filters.paymentStatus}
               onChange={(e) => setFilters((prev) => ({ ...prev, paymentStatus: e.target.value }))}
             >
-              <option value="ALL">Tất cả</option>
-              <option value="PAID">Đã thanh toán</option>
-              <option value="PENDING">Chờ thanh toán</option>
-              <option value="CANCELLED">Đã hủy</option>
-              <option value="REFUNDED">Đã hoàn tiền</option>
+              {PAYMENT_STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -219,32 +289,35 @@ export default function ManageBookings() {
                     </div>
                   </td>
                   <td>
-                    <span className={`badge bg-${booking.bookingStatus === 'CONFIRMED'
-                      ? 'success'
-                      : booking.bookingStatus === 'COMPLETED'
-                        ? 'primary'
-                        : 'secondary'}`}>
-                      {booking.bookingStatus}
+                    <span className={`badge bg-${statusVariant(booking.bookingStatus)}`}>
+                      {toViStatus(booking.bookingStatus)}
                     </span>
                   </td>
                   <td>
-                    <span className={`badge bg-${booking.paymentStatus === 'PAID'
-                      ? 'success'
-                      : booking.paymentStatus === 'PENDING'
-                        ? 'warning text-dark'
-                        : 'secondary'}`}>
-                      {booking.paymentStatus}
+                    <span className={`badge bg-${statusVariant(booking.paymentStatus)}`}>
+                      {toViStatus(booking.paymentStatus)}
                     </span>
                   </td>
                   <td>{new Date(booking.createdAt).toLocaleString('vi-VN')}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-primary"
-                      onClick={() => handleViewDetails(booking)}
-                    >
-                      Xem
-                    </button>
+                    <div className="d-flex flex-column gap-2">
+                      {booking.bookingStatus === 'CANCEL_REQUESTED' && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-warning text-white"
+                          onClick={() => handleOpenApproval(booking)}
+                        >
+                          Xác nhận hủy
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => handleViewDetails(booking)}
+                      >
+                        Xem
+                      </button>
+                    </div>
                   </td>
                   </tr>
                 );
@@ -264,12 +337,93 @@ export default function ManageBookings() {
         )}
       </div>
 
+      {approvalBooking && (
+        <div className="booking-detail-backdrop" onMouseDown={(event) => event.target === event.currentTarget && !approvalLoading && handleCloseApproval()}>
+          <div className="booking-detail-dialog" role="dialog" aria-modal="true">
+            <button
+              type="button"
+              className="booking-detail-close"
+              onClick={handleCloseApproval}
+              aria-label="Đóng"
+              disabled={approvalLoading}
+            >
+              ×
+            </button>
+
+            <h4 className="mb-3">Xác nhận hủy vé {approvalBooking.bookingCode}</h4>
+              <p className="text-muted">
+                Gửi ghi chú cho hành khách và xác nhận rằng vé đã được hủy. Nếu khách đã thanh toán, hãy chọn hoàn tiền.
+              </p>
+
+              <div className="mb-3">
+                <label className="form-label fw-semibold">Lý do khách yêu cầu hủy</label>
+                <p className="form-control-plaintext">
+                  {approvalBooking.cancelReason || 'Không có'}
+                </p>
+              </div>
+
+              <div className="alert alert-light border mb-3">
+                <strong>Chính sách hoàn tiền:</strong>
+                <ul className="mb-0">
+                  <li>Trước 24 giờ khởi hành: hoàn 100%.</li>
+                  <li>Từ 6 - 24 giờ: hoàn 50%.</li>
+                  <li>Ít hơn 6 giờ: không hoàn.</li>
+                </ul>
+              </div>
+
+            <div className="mb-3">
+              <label className="form-label">Ghi chú gửi khách</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={approvalNote}
+                onChange={(e) => setApprovalNote(e.target.value)}
+                placeholder="Ví dụ: Đã tiếp nhận yêu cầu và hoàn tiền trong 3 ngày làm việc..."
+                disabled={approvalLoading}
+              />
+            </div>
+
+            {(approvalBooking.paymentStatus === 'PAID' || approvalBooking.paymentStatus === 'REFUND_PENDING') && (
+              <div className="form-check mb-3">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="approvalRefund"
+                  checked={approvalRefund}
+                  onChange={(e) => setApprovalRefund(e.target.checked)}
+                  disabled={approvalLoading}
+                />
+                <label className="form-check-label" htmlFor="approvalRefund">
+                  Hoàn tiền cho khách
+                </label>
+              </div>
+            )}
+
+            {approvalError && (
+              <div className="alert alert-danger" role="alert">
+                {approvalError}
+              </div>
+            )}
+
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <button type="button" className="btn btn-outline-secondary" onClick={handleCloseApproval} disabled={approvalLoading}>
+                Hủy
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSubmitApproval} disabled={approvalLoading}>
+                {approvalLoading ? 'Đang xác nhận...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BookingDetailModal
         open={detailOpen}
         booking={selectedBooking}
         loading={detailLoading}
         onClose={handleCloseDetails}
         context="company"
+        onRequestCancel={handleOpenApproval}
       />
     </div>
   );

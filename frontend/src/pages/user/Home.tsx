@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import "../../style/home.css";
@@ -21,6 +21,7 @@ type TripAPI = {
     busNumber: string;
     busType: string;
     facilities: string[];
+    totalSeats?: number;
     company?: { name?: string };
   };
   departureLocation?: { id: number; name: string };
@@ -39,6 +40,8 @@ export default function Home() {
     to: "",
     date: new Date().toISOString().split("T")[0],
   });
+  const [featuredPage, setFeaturedPage] = useState(1);
+  const FEATURED_PAGE_SIZE = 6;
 
   // Map full News to display shape for the homepage cards
   const toDisplayNews = (n: News): DisplayNews => ({
@@ -49,6 +52,22 @@ export default function Home() {
     featuredImage: n.featuredImage,
     company: n.company && n.company.name ? { name: n.company.name } : undefined,
   });
+
+  const featuredTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(featuredTrips.length / FEATURED_PAGE_SIZE)),
+    [featuredTrips.length]
+  );
+
+  const paginatedFeaturedTrips = useMemo(() => {
+    const start = (featuredPage - 1) * FEATURED_PAGE_SIZE;
+    return featuredTrips.slice(start, start + FEATURED_PAGE_SIZE);
+  }, [featuredTrips, featuredPage]);
+
+  useEffect(() => {
+    if (featuredPage > featuredTotalPages) {
+      setFeaturedPage(featuredTotalPages);
+    }
+  }, [featuredTotalPages, featuredPage]);
 
   useEffect(() => {
     const load = async () => {
@@ -77,7 +96,7 @@ export default function Home() {
         // Load highlighted news (big card) and other news list
         try {
           const [hiRes, otherRes] = await Promise.all([
-            newsService.getPublicNews({ highlighted: true, limit: 20, sortBy: 'publishedAt', sortOrder: 'DESC' }),
+            newsService.getPublicNews({ highlighted: true, limit: 10, sortBy: 'publishedAt', sortOrder: 'DESC' }),
             newsService.getPublicNews({ highlighted: false, limit: 10, sortBy: 'publishedAt', sortOrder: 'DESC' }),
           ]);
           const hiArr: News[] = (hiRes?.data?.news || []) as News[];
@@ -116,7 +135,8 @@ export default function Home() {
           return Number.isFinite(departureTs) && departureTs >= nowTs;
         });
 
-        setFeaturedTrips(upcomingTrips.slice(0, 10));
+        setFeaturedTrips(upcomingTrips.slice(0, 30));
+        setFeaturedPage(1);
       } catch (err) {
         console.error("Home load error", err);
         setAvailableLocations(
@@ -238,15 +258,17 @@ export default function Home() {
             </div>
           </div>
         </div>
+        
       </section>
+      
       <section className="featured-trips">
         <div className="container">
           <h2>Chuyến xe nổi bật</h2>
           <p>Các chuyến xe phổ biến với giá tốt</p>
-
+              
           {featuredTrips.length > 0 ? (
             <div className="trips-grid">
-              {featuredTrips.map((trip) => (
+              {paginatedFeaturedTrips.map((trip) => (
                 <div
                   key={trip.id}
                   className="trip-card"
@@ -297,6 +319,53 @@ export default function Home() {
               <p>Vui lòng quay lại sau hoặc tìm kiếm chuyến xe khác</p>
             </div>
           )}
+        {featuredTrips.length > FEATURED_PAGE_SIZE && (
+          <div className="container">
+            <div className="pagination-controls">
+              <button
+                className="pagination-btn"
+                onClick={() => {
+                  const next = Math.max(1, featuredPage - 1);
+                  if (next !== featuredPage) {
+                    setFeaturedPage(next);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                disabled={featuredPage === 1}
+              >
+                Truoc
+              </button>
+              {Array.from({ length: featuredTotalPages }).map((_, index) => {
+                const page = index + 1;
+                return (
+                  <button
+                    key={page}
+                    className={`pagination-btn ${page === featuredPage ? 'active' : ''}`}
+                    onClick={() => {
+                      setFeaturedPage(page);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              <button
+                className="pagination-btn"
+                onClick={() => {
+                  const next = Math.min(featuredTotalPages, featuredPage + 1);
+                  if (next !== featuredPage) {
+                    setFeaturedPage(next);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                disabled={featuredPage === featuredTotalPages}
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
         </div>
       </section>
       <section className="news-section">

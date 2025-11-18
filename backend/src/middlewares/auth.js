@@ -2,6 +2,12 @@ const jwt = require('jsonwebtoken');
 const { ROLES } = require('../constants/roles');
 const authorize = require('./authorize');
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("Missing JWT_SECRET environment variable");
+}
+
 const authenticateTokenOptional = (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) {
@@ -10,7 +16,7 @@ const authenticateTokenOptional = (req, res, next) => {
 
   try {
     const token = authHeader.slice('Bearer '.length);
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
   } catch (error) {
     console.warn('[auth] optional token verification failed:', error.message);
@@ -27,7 +33,7 @@ const authenticateToken = (req, res, next) => {
     }
 
     const token = authHeader.slice('Bearer '.length);
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
 
     if (req.path && req.path.startsWith('/api/admin')) {
@@ -99,12 +105,34 @@ const requirePassenger = (req, res, next) => {
   return next();
 };
 
+const requireDriver = (req, res, next) => {
+  if (req.user?.role !== ROLES.DRIVER) {
+    return res.status(403).json({
+      success: false,
+      message: 'Driver access required',
+      requiredRole: ROLES.DRIVER,
+      userRole: req.user?.role
+    });
+  }
+
+  if (req.user?.driverId == null) {
+    return res.status(400).json({ success: false, message: 'Missing driverId for driver account' });
+  }
+
+  if (req.user?.companyId == null) {
+    return res.status(400).json({ success: false, message: 'Missing companyId for driver account' });
+  }
+
+  return next();
+};
+
 module.exports = {
   authenticateToken,
   requireAdmin,
   requirePassenger,
   requireAdminOrCompany,
   requireCompany,
+  requireDriver,
   authorize,
   authenticateTokenOptional
 };

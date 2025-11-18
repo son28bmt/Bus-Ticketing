@@ -104,10 +104,12 @@ export interface UserBooking {
   payableAmount?: number;
   voucherId?: number | null;
   voucher?: Voucher | null;
-  paymentStatus: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED';
-  bookingStatus: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  paymentStatus: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED' | 'REFUND_PENDING';
+  bookingStatus: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'CANCEL_REQUESTED';
   paymentMethod: string;
   notes?: string;
+  cancelReason?: string | null;
+  refundAmount?: number | null;
   createdAt: string;
   updatedAt: string;
   trip: Trip;

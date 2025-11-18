@@ -17,7 +17,7 @@ type BusRecord = {
   busType: string;
   totalSeats: number;
   capacity?: number;
-  facilities?: string[];
+  facilities?: string[] | null;
   isActive?: boolean;
 };
 

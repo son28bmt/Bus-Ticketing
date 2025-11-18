@@ -599,7 +599,44 @@
     grid-template-columns: 1fr;
   }
   
-  .services-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
+.services-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  min-width: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1f2937;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.pagination-btn.active {
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 }

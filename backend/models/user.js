@@ -4,13 +4,11 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // User có thể thuộc về một nhà xe (nếu là admin)
       User.belongsTo(models.BusCompany, {
         foreignKey: 'companyId',
         as: 'company'
       });
-      
-      // User có nhiều booking
+
       User.hasMany(models.Booking, {
         foreignKey: 'userId',
         as: 'bookings'
@@ -34,6 +32,13 @@ module.exports = (sequelize, DataTypes) => {
         User.hasMany(models.UserVoucher, {
           foreignKey: 'userId',
           as: 'voucherWallet'
+        });
+      }
+
+      if (models.Driver) {
+        User.hasOne(models.Driver, {
+          foreignKey: 'userId',
+          as: 'driverProfile'
         });
       }
     }
@@ -61,7 +66,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('admin', 'company', 'passenger'),
+      type: DataTypes.ENUM('admin', 'company', 'driver', 'passenger'),
       allowNull: false,
       defaultValue: 'passenger'
     },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminAPI } from '../../services/admin';
 import { LOCATIONS } from '../../constants/locations';
 import '../../style/table.css';
@@ -47,11 +47,53 @@ export default function ManageTrips() {
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  const nowInputValue = useMemo(() => {
+    const nowDate = new Date();
+    nowDate.setMinutes(nowDate.getMinutes() - nowDate.getTimezoneOffset());
+    return nowDate.toISOString().slice(0, 16);
+  }, []);
+
   const canSubmit = useMemo(() => {
     return (
       form.busId && form.departureLocationId && form.arrivalLocationId && form.departureTime && form.arrivalTime && form.basePrice
     );
   }, [form]);
+
+  const isBusBusy = useCallback(
+    (busId: number, departureISO: string, arrivalISO: string, ignoreTripId?: number) => {
+      if (!busId || !departureISO || !arrivalISO) {
+        return false;
+      }
+
+      const departureTs = Date.parse(departureISO);
+      const arrivalTs = Date.parse(arrivalISO);
+      if (!Number.isFinite(departureTs) || !Number.isFinite(arrivalTs) || arrivalTs <= departureTs) {
+        return false;
+      }
+
+      return trips.some((trip) => {
+        const tripBusId = trip.bus?.id ?? trip.busId;
+        if (tripBusId !== busId) {
+          return false;
+        }
+        if (ignoreTripId && trip.id === ignoreTripId) {
+          return false;
+        }
+        if (trip.status && trip.status.toUpperCase() === 'CANCELLED') {
+          return false;
+        }
+
+        const tripDepartureTs = Date.parse(trip.departureTime);
+        const tripArrivalTs = Date.parse(trip.arrivalTime);
+        if (!Number.isFinite(tripDepartureTs) || !Number.isFinite(tripArrivalTs)) {
+          return false;
+        }
+
+        return tripDepartureTs < arrivalTs && tripArrivalTs > departureTs;
+      });
+    },
+    [trips]
+  );
 
   const loadData = async () => {
     try {
@@ -187,11 +229,23 @@ export default function ManageTrips() {
         <div className="row g-3">
           <div className="col-12 col-md-4">
             <label>Xe</label>
-            <select className="form-select" value={form.busId} onChange={e => setForm(f => ({ ...f, busId: e.target.value }))} required>
-              <option value="">-- Chọn xe --</option>
-              {buses.map(b => (
-                <option key={b.id} value={b.id}>{b.busNumber} ({b.busType === 'SLEEPER' ? 'Giường nằm' : (b.busType === 'SEAT' ? 'Ghế ngồi' : b.busType)})</option>
-              ))}
+            <select
+              className="form-select"
+              value={form.busId}
+              onChange={e => setForm(f => ({ ...f, busId: e.target.value }))}
+              required
+            >
+              <option value="">-- Chon xe --</option>
+              {buses.map(b => {
+                const disabled = isBusBusy(b.id, form.departureTime, form.arrivalTime);
+                const description = b.busType === 'SLEEPER' ? 'Giuong nam' : b.busType === 'SEAT' ? 'Ghe ngoi' : b.busType;
+                const label = `${b.busNumber} (${description})${disabled ? ' - Da co lich' : ''}`;
+                return (
+                  <option key={b.id} value={b.id} disabled={disabled}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="col-12 col-md-4">
@@ -214,11 +268,25 @@ export default function ManageTrips() {
           </div>
           <div className="col-12 col-md-4">
             <label>Giờ đi</label>
-            <input className="form-control" type="datetime-local" value={form.departureTime} onChange={e => setForm(f => ({ ...f, departureTime: e.target.value }))} required />
+            <input
+              className="form-control"
+              type="datetime-local"
+              value={form.departureTime}
+              min={nowInputValue}
+              onChange={e => setForm(f => ({ ...f, departureTime: e.target.value }))}
+              required
+            />
           </div>
           <div className="col-12 col-md-4">
             <label>Giờ đến</label>
-            <input className="form-control" type="datetime-local" value={form.arrivalTime} onChange={e => setForm(f => ({ ...f, arrivalTime: e.target.value }))} required />
+            <input
+              className="form-control"
+              type="datetime-local"
+              value={form.arrivalTime}
+              min={form.departureTime || nowInputValue}
+              onChange={e => setForm(f => ({ ...f, arrivalTime: e.target.value }))}
+              required
+            />
           </div>
           <div className="col-12 col-md-4">
             <label>Giá cơ bản (VND)</label>
@@ -291,10 +359,30 @@ export default function ManageTrips() {
           <div className="row g-3">
             <div className="col-12 col-md-4">
               <label>Xe</label>
-              <select className="form-select" value={editing.bus?.id} onChange={e => setEditing(ed => ed ? { ...ed, bus: { ...ed.bus, id: Number(e.target.value) } } : ed)}>
-                {buses.map(b => (
-                  <option key={b.id} value={b.id}>{b.busNumber} ({b.busType})</option>
-                ))}
+              <select
+                className="form-select"
+                value={editing.bus?.id ?? editing.busId ?? ''}
+                onChange={e =>
+                  setEditing(ed => {
+                    if (!ed) return ed;
+                    const value = Number(e.target.value);
+                    return {
+                      ...ed,
+                      busId: value,
+                      bus: { ...ed.bus, id: value }
+                    };
+                  })
+                }
+              >
+                {buses.map(b => {
+                  const disabled = isBusBusy(b.id, editing.departureTime, editing.arrivalTime, editing.id);
+                  const label = `${b.busNumber} (${b.busType})${disabled ? ' - Da co lich' : ''}`;
+                  return (
+                    <option key={b.id} value={b.id} disabled={disabled}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div className="col-12 col-md-4">

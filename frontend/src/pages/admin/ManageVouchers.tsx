@@ -10,6 +10,7 @@ import {
   type VoucherPayload,
 } from "../../services/admin"
 import type { Voucher } from "../../types/voucher"
+import { toViStatus, statusVariant } from "../../utils/status"
 import "../../style/dashboard.css"
 import "../../style/vouchers.css"
 
@@ -128,26 +129,26 @@ const ManageVouchers = () => {
   const pagedVouchers = useMemo(() => vouchers ?? [], [vouchers])
 
   const summary = useMemo(() => {
-    const now = Date.now()
+    const nowTs = Date.now()
     let active = 0
     let upcoming = 0
     let expired = 0
 
     pagedVouchers.forEach((voucher) => {
-      const start = voucher.startDate ? new Date(voucher.startDate).getTime() : null
-      const end = voucher.endDate ? new Date(voucher.endDate).getTime() : null
+      const startTs = voucher.startDate ? new Date(voucher.startDate).getTime() : null
+      const statusKey = (voucher.status ?? (voucher.isActive ? "ACTIVE" : "INACTIVE")).toUpperCase()
 
-      if (end != null && end < now) {
-        expired += 1
-        return
-      }
-
-      if (start != null && start > now) {
+      if (startTs != null && startTs > nowTs) {
         upcoming += 1
         return
       }
 
-      if (voucher.isActive) {
+      if (statusKey === "EXPIRED") {
+        expired += 1
+        return
+      }
+
+      if (statusKey === "ACTIVE" || statusKey === "EXPIRING") {
         active += 1
       }
     })
@@ -414,6 +415,16 @@ const ManageVouchers = () => {
                 </tr>
               ) : (
                 pagedVouchers.map((voucher) => {
+                  const nowTs = Date.now()
+                  const startTs = voucher.startDate ? new Date(voucher.startDate).getTime() : null
+                  const baseStatus = (voucher.status ?? (voucher.isActive ? "ACTIVE" : "INACTIVE")).toUpperCase()
+                  const computedStatus = startTs != null && startTs > nowTs ? "UPCOMING" : baseStatus
+                  const badgeVariant = statusVariant(computedStatus)
+                  const statusLabel = toViStatus(computedStatus)
+                  const expNote =
+                    computedStatus === "EXPIRING" && typeof voucher.daysToExpire === "number"
+                      ? `Con ${voucher.daysToExpire} ngay`
+                      : null
                   const discountValue =
                     voucher.discountType === "PERCENT"
                       ? `${voucher.discountValue}%`
@@ -477,9 +488,12 @@ const ManageVouchers = () => {
                         )}
                       </td>
                       <td>
-                        <span className={`badge bg-${voucher.isActive ? "success" : "secondary"}`}>
-                          {voucher.isActive ? "Ap dung" : "Dung"}
-                        </span>
+                        <div className="d-flex flex-column">
+                          <span className={`badge bg-${badgeVariant}`}>
+                            {statusLabel}
+                          </span>
+                          {expNote && <span className="text-muted small mt-1">{expNote}</span>}
+                        </div>
                       </td>
                       <td>
                         <div className="d-flex gap-1 flex-wrap">

@@ -5,17 +5,12 @@ import './style/AdminSidebar.css';
 interface MenuItem {
   id: string;
   title: string;
-  // icon: string;
   path: string;
   exact?: boolean;
   submenu?: MenuItem[];
 }
 
-export default function AdminSidebar() {
-  const location = useLocation();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-
-  const menuItems: MenuItem[] = [
+const MENU_ITEMS: MenuItem[] = [
     // {
     //   id: 'overview',
     //   title: 'Tổng quan',
@@ -84,7 +79,12 @@ export default function AdminSidebar() {
       // icon: '??',
       path: '/admin/reports',
     },
-  ];
+];
+
+export default function AdminSidebar() {
+  const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const menuItems = MENU_ITEMS;
 
   // Auto-expand sections when current path matches their base path
   useMemo(() => {
@@ -92,7 +92,7 @@ export default function AdminSidebar() {
       .filter((item) => item.submenu && location.pathname.startsWith(item.path))
       .map((item) => item.id);
     setExpandedMenus((prev) => Array.from(new Set([...prev, ...autoExpanded])));
-  }, [location.pathname]);
+  }, [location.pathname, menuItems]);
 
   const toggleExpand = (id: string) => {
     setExpandedMenus((prev) =>

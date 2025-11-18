@@ -1,16 +1,55 @@
+'use strict';
+
 const { ROLES } = require('../../constants/roles');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User } = require('../../../models'); // Adjusted path to root models directory
+const { User, Driver, BusCompany } = require('../../../models');
 
-// ✅ Register new user
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+const normalizeRole = (role) => (role ? String(role).toLowerCase() : ROLES.PASSENGER);
+
+const buildTokenPayload = (user, driverProfile) => ({
+  id: user.id,
+  email: user.email,
+  role: user.role,
+  companyId: driverProfile?.companyId ?? user.companyId ?? null,
+  driverId: driverProfile ? driverProfile.id : null
+});
+
+const sanitizeUser = (user, driverProfile) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  status: user.status,
+  lastLoginAt: user.lastLoginAt,
+  companyId: driverProfile?.companyId ?? user.companyId ?? null,
+  driverId: driverProfile ? driverProfile.id : null,
+  driverProfile: driverProfile
+    ? {
+        id: driverProfile.id,
+        companyId: driverProfile.companyId,
+        licenseNumber: driverProfile.licenseNumber,
+        phone: driverProfile.phone,
+        status: driverProfile.status
+      }
+    : undefined
+});
+
 const register = async (req, res) => {
   try {
-    const { name, email, phone, password, role = ROLES.PASSENGER } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role = ROLES.PASSENGER,
+      companyId,
+      licenseNumber
+    } = req.body;
 
-    console.log('🔄 Registration attempt:', { name, email, phone, role });
-
-    // ✅ Basic validation
     if (!name || !email || !phone || !password) {
       return res.status(400).json({
         success: false,
@@ -26,7 +65,6 @@ const register = async (req, res) => {
       });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(409).json({
@@ -35,63 +73,79 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    const normalizedRole = role ? String(role).toLowerCase() : ROLES.PASSENGER;
-    if (![ROLES.ADMIN, ROLES.COMPANY, ROLES.PASSENGER].includes(normalizedRole)) {
+    const normalizedRole = normalizeRole(role);
+    const allowedRoles = [ROLES.ADMIN, ROLES.COMPANY, ROLES.DRIVER, ROLES.PASSENGER];
+    if (!allowedRoles.includes(normalizedRole)) {
       return res.status(400).json({
         success: false,
-        message: 'Role khong hop le'
+        message: 'Role không hợp lệ'
       });
     }
 
-    // Create user
+    let resolvedCompanyId = null;
+    if (normalizedRole === ROLES.COMPANY || normalizedRole === ROLES.DRIVER) {
+      if (companyId == null || companyId === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cần cung cấp companyId cho tài khoản công ty/tài xế'
+        });
+      }
+
+      const numericCompanyId = Number(companyId);
+      if (!Number.isFinite(numericCompanyId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'companyId không hợp lệ'
+        });
+      }
+
+      const companyExists = await BusCompany.findByPk(numericCompanyId);
+      if (!companyExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nhà xe không tồn tại'
+        });
+      }
+      resolvedCompanyId = numericCompanyId;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
     const user = await User.create({
       name,
       email,
       phone,
-      passwordHash, // ✅ Use passwordHash instead of password
+      passwordHash,
       role: normalizedRole,
+      companyId: normalizedRole === ROLES.DRIVER ? resolvedCompanyId : resolvedCompanyId ?? null,
       status: 'ACTIVE'
     });
 
-    console.log('✅ User created successfully:', user.id);
+    let driverProfile = null;
+    if (normalizedRole === ROLES.DRIVER) {
+      driverProfile = await Driver.create({
+        userId: user.id,
+        companyId: resolvedCompanyId,
+        licenseNumber: licenseNumber || null,
+        phone
+      });
+    }
 
-    // Generate JWT token
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        email: user.email, 
-        role: user.role,
-        companyId: user.companyId
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
+      buildTokenPayload(user, driverProfile),
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Return user info (without password)
-    const userResponse = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt
-    };
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Đăng ký thành công',
-      user: userResponse,
+      user: sanitizeUser(user, driverProfile),
       token
     });
-
   } catch (error) {
-    console.error('❌ Registration error:', error);
-    res.status(500).json({
+    console.error('Registration error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server khi đăng ký',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -99,14 +153,10 @@ const register = async (req, res) => {
   }
 };
 
-// ✅ User login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log('🔄 Login attempt:', email);
-
-    // ✅ Basic validation
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -114,7 +164,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user by email
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({
@@ -123,7 +172,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Check if user is active
     if (user.status !== 'ACTIVE') {
       return res.status(403).json({
         success: false,
@@ -131,53 +179,53 @@ const login = async (req, res) => {
       });
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
       return res.status(401).json({
         success: false,
         message: 'Email hoặc mật khẩu không đúng'
       });
     }
 
-    // Update last login
+    let driverProfile = null;
+    if (user.role === ROLES.DRIVER) {
+      driverProfile = await Driver.findOne({
+        where: { userId: user.id },
+        attributes: ['id', 'companyId', 'status', 'licenseNumber', 'phone']
+      });
+
+      if (!driverProfile) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài xế chưa được cấu hình. Vui lòng liên hệ quản trị.'
+        });
+      }
+
+      if (driverProfile.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài xế đã bị tạm ngưng.'
+        });
+      }
+    }
+
     await user.update({ lastLoginAt: new Date() });
 
-    console.log('✅ Login successful:', user.email);
-
-    // Generate JWT token
     const token = jwt.sign(
-        { 
-          id: user.id, 
-          email: user.email, 
-          role: user.role,
-          companyId: user.companyId
-        },
-      process.env.JWT_SECRET || 'your-secret-key',
+      buildTokenPayload(user, driverProfile),
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Return user info (without password)
-    const userResponse = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      lastLoginAt: user.lastLoginAt
-    };
-
-    res.json({
+    return res.json({
       success: true,
       message: 'Đăng nhập thành công',
-      user: userResponse,
+      user: sanitizeUser(user, driverProfile),
       token
     });
-
   } catch (error) {
-    console.error('❌ Login error:', error);
-    res.status(500).json({
+    console.error('Login error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server khi đăng nhập',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -185,11 +233,20 @@ const login = async (req, res) => {
   }
 };
 
-// ✅ Get user profile
 const getProfile = async (req, res) => {
   try {
+    const include = [];
+    if (req.user.role === ROLES.DRIVER) {
+      include.push({
+        model: Driver,
+        as: 'driverProfile',
+        attributes: ['id', 'companyId', 'licenseNumber', 'phone', 'status']
+      });
+    }
+
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['passwordHash'] }
+      attributes: { exclude: ['passwordHash'] },
+      include
     });
 
     if (!user) {
@@ -199,14 +256,13 @@ const getProfile = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       user
     });
-
   } catch (error) {
-    console.error('❌ Get profile error:', error);
-    res.status(500).json({
+    console.error('Get profile error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy thông tin người dùng',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -214,39 +270,50 @@ const getProfile = async (req, res) => {
   }
 };
 
-// ✅ Update profile
 const updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body;
     const updates = {};
-    
     if (name) updates.name = name;
     if (phone) updates.phone = phone;
 
-    const [updatedRowsCount] = await User.update(updates, {
-      where: { id: req.user.id }
-    });
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có thông tin cập nhật'
+      });
+    }
 
-    if (updatedRowsCount === 0) {
+    const [affected] = await User.update(updates, { where: { id: req.user.id } });
+    if (affected === 0) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy người dùng'
       });
     }
 
+    if (req.user.role === ROLES.DRIVER && phone) {
+      await Driver.update(
+        { phone },
+        { where: { userId: req.user.id } }
+      );
+    }
+
     const updatedUser = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['passwordHash'] }
+      attributes: { exclude: ['passwordHash'] },
+      include: req.user.role === ROLES.DRIVER
+        ? [{ model: Driver, as: 'driverProfile', attributes: ['id', 'companyId', 'licenseNumber', 'phone', 'status'] }]
+        : []
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Cập nhật thông tin thành công',
       user: updatedUser
     });
-
   } catch (error) {
-    console.error('❌ Update profile error:', error);
-    res.status(500).json({
+    console.error('Update profile error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server khi cập nhật thông tin',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -254,7 +321,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// ✅ Change password
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -281,30 +347,24 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isCurrentPasswordValid) {
+    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentValid) {
       return res.status(401).json({
         success: false,
         message: 'Mật khẩu hiện tại không đúng'
       });
     }
 
-    // Hash new password
-    const saltRounds = 10;
-    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.update({ passwordHash });
 
-    // Update password
-    await user.update({ passwordHash: newPasswordHash });
-
-    res.json({
+    return res.json({
       success: true,
       message: 'Đổi mật khẩu thành công'
     });
-
   } catch (error) {
-    console.error('❌ Change password error:', error);
-    res.status(500).json({
+    console.error('Change password error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server khi đổi mật khẩu',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -319,7 +379,3 @@ module.exports = {
   updateProfile,
   changePassword
 };
-
-
-
-

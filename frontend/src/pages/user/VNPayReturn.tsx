@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useVNPay } from '../../hooks/useVNPay';
-import { toViStatus, statusVariant } from '../../utils/status';
-import '../../style/vnpay-return.css';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useVNPay } from "../../hooks/useVNPay";
+import { toViStatus, statusVariant } from "../../utils/status";
+import "../../style/vnpay-return.css";
 
 interface VNPayReturnParams {
   vnp_Amount?: string;
@@ -19,11 +19,13 @@ interface VNPayReturnParams {
   vnp_SecureHash?: string;
 }
 
+const DEV_LOG_ENABLED = import.meta.env.DEV;
+
 export default function VNPayReturn() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { queryTransaction, formatVNPayAmount } = useVNPay();
-  
+
   const [processing, setProcessing] = useState(true);
   const [transactionData, setTransactionData] = useState<{
     id: number;
@@ -39,64 +41,66 @@ export default function VNPayReturn() {
   useEffect(() => {
     const processVNPayReturn = async () => {
       try {
-        console.log('🔄 Processing VNPay return...');
+        if (DEV_LOG_ENABLED) {
+          console.debug("[vnpay] processing return params");
+        }
 
-        // Get all VNPay parameters from URL
         const vnpayParams: VNPayReturnParams = {};
         searchParams.forEach((value, key) => {
-          if (key.startsWith('vnp_')) {
+          if (key.startsWith("vnp_")) {
             vnpayParams[key as keyof VNPayReturnParams] = value;
           }
         });
 
-        console.log('📝 VNPay params:', vnpayParams);
-
-        if (!vnpayParams.vnp_TxnRef) {
-          throw new Error('Thiếu thông tin giao dịch');
+        if (DEV_LOG_ENABLED) {
+          console.debug("[vnpay] params", vnpayParams);
         }
 
-        // Query transaction status from backend
+        if (!vnpayParams.vnp_TxnRef) {
+          throw new Error("Thieu thong tin giao dich");
+        }
+
         const transaction = await queryTransaction(vnpayParams.vnp_TxnRef);
-        console.log('✅ Transaction data:', transaction);
+
+        if (DEV_LOG_ENABLED) {
+          console.debug("[vnpay] transaction data", transaction);
+        }
 
         setTransactionData({
           ...transaction,
-          vnpayParams
+          vnpayParams,
         });
 
-        // Auto redirect to payment success/failure after 3 seconds
         setTimeout(() => {
-          if (transaction.status === 'SUCCESS') {
-            navigate('/payment/success', {
+          if (transaction.status === "SUCCESS") {
+            navigate("/payment/success", {
               state: {
                 booking: {
                   id: transaction.id,
                   bookingCode: transaction.orderId,
-                  paymentStatus: 'PAID'
+                  paymentStatus: "PAID",
                 },
                 payment: {
                   id: transaction.id,
                   paymentCode: transaction.orderId,
-                  paymentMethod: 'VNPAY',
-                  paymentStatus: 'SUCCESS',
+                  paymentMethod: "VNPAY",
+                  paymentStatus: "SUCCESS",
                   amount: transaction.amount,
-                  paidAt: transaction.paidAt
+                  paidAt: transaction.paidAt,
                 },
-                isVNPay: true
-              }
+                isVNPay: true,
+              },
             });
           } else {
-            navigate('/search', { replace: true });
+            navigate("/search", { replace: true });
           }
         }, 3000);
-
       } catch (err) {
-        console.error('❌ Process VNPay return error:', err);
-        setError(err instanceof Error ? err.message : 'Lỗi xử lý kết quả thanh toán');
-        
-        // Redirect to search page after error
+        console.error("[vnpay] process return error", err);
+        setError(err instanceof Error ? err.message : "Loi xu ly ket qua thanh toan");
+
         setTimeout(() => {
-          navigate('/search', { replace: true });
+          navigate("/search", { replace: true });
         }, 5000);
       } finally {
         setProcessing(false);
@@ -114,8 +118,8 @@ export default function VNPayReturn() {
             <div className="return-icon">
               <div className="loading-spinner large"></div>
             </div>
-            <h2>Đang xử lý kết quả thanh toán...</h2>
-            <p>Vui lòng đợi trong giây lát</p>
+            <h2>Dang xu ly ket qua thanh toan...</h2>
+            <p>Vui long doi trong giay lat</p>
           </div>
         </div>
       </div>
@@ -128,14 +132,11 @@ export default function VNPayReturn() {
         <div className="container">
           <div className="return-card error">
             <div className="return-icon"></div>
-            <h2>Lỗi xử lý thanh toán</h2>
+            <h2>Loi xu ly thanh toan</h2>
             <p>{error}</p>
             <div className="return-actions">
-              <button
-                className="btn btn-primary"
-                onClick={() => navigate('/search')}
-              >
-                Quay về trang chủ
+              <button className="btn btn-primary" onClick={() => navigate("/search")}>
+                Quay ve trang chu
               </button>
             </div>
           </div>
@@ -144,40 +145,36 @@ export default function VNPayReturn() {
     );
   }
 
-  const isSuccess = transactionData?.status === 'SUCCESS';
-  const vnpayParams = transactionData?.vnpayParams || {};
+  const isSuccess = transactionData?.status === "SUCCESS";
+  const vnpayParams = transactionData?.vnpayParams ?? {};
 
   return (
     <div className="vnpay-return-page">
       <div className="container">
-          <div className={`return-card ${isSuccess ? 'success' : 'failed'}`}>
+        <div className={`return-card ${isSuccess ? "success" : "failed"}`}>
           <div className="return-icon"></div>
-          
-          <h2>
-            {isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại'}
-          </h2>
-          
+
+          <h2>{isSuccess ? "Thanh toan thanh cong!" : "Thanh toan that bai"}</h2>
+
           <p>
-            {isSuccess 
-              ? 'Giao dịch của bạn đã được xử lý thành công'
-              : transactionData?.responseMessage || 'Giao dịch không thành công'
-            }
+            {isSuccess
+              ? "Giao dich cua ban da duoc xu ly thanh cong"
+              : transactionData?.responseMessage || "Giao dich khong thanh cong"}
           </p>
 
-          {/* Transaction Details */}
           <div className="transaction-details">
             <div className="detail-row">
-              <span className="label">Mã giao dịch:</span>
+              <span className="label">Ma giao dich:</span>
               <span className="value">{transactionData?.orderId}</span>
             </div>
-            
+
             <div className="detail-row">
-              <span className="label">Số tiền:</span>
+              <span className="label">So tien:</span>
               <span className="value">{formatVNPayAmount(transactionData?.amount || 0)}</span>
             </div>
-            
+
             <div className="detail-row">
-              <span className="label">Trạng thái:</span>
+              <span className="label">Trang thai:</span>
               <span className={`badge bg-${statusVariant(transactionData?.status)}`}>
                 {toViStatus(transactionData?.status)}
               </span>
@@ -185,23 +182,23 @@ export default function VNPayReturn() {
 
             {vnpayParams.vnp_BankCode && (
               <div className="detail-row">
-                <span className="label">Ngân hàng:</span>
+                <span className="label">Ngan hang:</span>
                 <span className="value">{vnpayParams.vnp_BankCode}</span>
               </div>
             )}
 
             {vnpayParams.vnp_TransactionNo && (
               <div className="detail-row">
-                <span className="label">Mã GD VNPay:</span>
+                <span className="label">Ma giao dich VNPay:</span>
                 <span className="value">{vnpayParams.vnp_TransactionNo}</span>
               </div>
             )}
 
             {transactionData?.paidAt && (
               <div className="detail-row">
-                <span className="label">Thời gian:</span>
+                <span className="label">Thoi gian:</span>
                 <span className="value">
-                  {new Date(transactionData.paidAt).toLocaleString('vi-VN')}
+                  {new Date(transactionData.paidAt).toLocaleString("vi-VN")}
                 </span>
               </div>
             )}
@@ -210,26 +207,22 @@ export default function VNPayReturn() {
           <div className="return-actions">
             <button
               className="btn btn-primary"
-              onClick={() => navigate(isSuccess ? '/my-tickets' : '/search')}
+              onClick={() => navigate(isSuccess ? "/my-tickets" : "/search")}
             >
-              {isSuccess ? 'Xem vé của tôi' : 'Thử lại'}
+              {isSuccess ? "Xem ve cua toi" : "Thu lai"}
             </button>
-            
-            <button
-              className="btn btn-outline"
-              onClick={() => navigate('/search')}
-            >
-              Về trang chủ
+
+            <button className="btn btn-outline" onClick={() => navigate("/search")}>
+              Ve trang chu
             </button>
           </div>
 
           <div className="auto-redirect">
             <p>
               <small>
-                {isSuccess 
-                  ? 'Bạn sẽ được chuyển đến trang vé của tôi sau 3 giây...'
-                  : 'Bạn sẽ được chuyển về trang chủ sau 3 giây...'
-                }
+                {isSuccess
+                  ? "Ban se duoc chuyen den trang Ve cua toi sau 3 giay..."
+                  : "Ban se duoc chuyen ve trang chu sau 3 giay..."}
               </small>
             </p>
           </div>
@@ -238,10 +231,3 @@ export default function VNPayReturn() {
     </div>
   );
 }
-
-
-
-
-
-
-

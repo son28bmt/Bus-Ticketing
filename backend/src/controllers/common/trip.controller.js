@@ -92,9 +92,18 @@ const getTripById = async (req, res) => {
           model: Bus,
           as: 'bus',
           include: [
-            { model: BusCompany, as: 'company', attributes: ['id', 'name', 'code'] },
+            {
+              model: BusCompany,
+              as: 'company',
+              attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
+            },
             { model: Seat, as: 'seats', attributes: ['id', 'seatNumber', 'seatType', 'priceMultiplier', 'isActive'] }
           ]
+        },
+        {
+          model: BusCompany,
+          as: 'company',
+          attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
         },
         { model: Location, as: 'departureLocation', attributes: ['id', 'name', 'province'] },
         { model: Location, as: 'arrivalLocation', attributes: ['id', 'name', 'province'] },
@@ -282,9 +291,14 @@ const searchTrips = async (req, res) => {
             {
               model: BusCompany,
               as: 'company',
-              attributes: ['id', 'name', 'code']
+              attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
             }
           ]
+        },
+        {
+          model: BusCompany,
+          as: 'company',
+          attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
         },
         {
           model: Location,
@@ -427,8 +441,17 @@ const getFeaturedTrips = async (req, res) => {
           model: Bus,
           as: 'bus',
           include: [
-            { model: BusCompany, as: 'company', attributes: ['id', 'name', 'code'] }
+            {
+              model: BusCompany,
+              as: 'company',
+              attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
+            }
           ]
+        },
+        {
+          model: BusCompany,
+          as: 'company',
+          attributes: ['id', 'name', 'code', 'bankName', 'bankAccountName', 'bankAccountNumber', 'bankCode']
         },
         { model: Location, as: 'departureLocation', attributes: ['id', 'name', 'province'] },
         { model: Location, as: 'arrivalLocation', attributes: ['id', 'name', 'province'] },

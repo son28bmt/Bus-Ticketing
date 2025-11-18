@@ -5,4 +5,5 @@ module.exports = {
   createTrip: companyController.createTrip,
   updateTrip: companyController.updateTrip,
   deleteTrip: companyController.deleteTrip,
+  cancelTrip: companyController.cancelTrip,
 };

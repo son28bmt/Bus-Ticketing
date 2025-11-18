@@ -1,5 +1,5 @@
 // src/pages/MyTickets.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingAPI } from '../../services/booking';
@@ -8,15 +8,30 @@ import { CheckCircle, XCircle, Clock, AlertCircle, Bus, Calendar, Ticket } from 
 import type { UserBooking, ApiError, PaymentProcessData } from '../../types/payment';
 import { toViStatus, statusVariant } from '../../utils/status';
 
+const CANCEL_REASONS = [
+  'Tôi đổi kế hoạch di chuyển',
+  'Đặt nhầm ngày giờ',
+  'Đặt nhầm thông tin hành khách',
+  'Thay đổi phương tiện',
+  'Giá chưa phù hợp',
+  'Lý do khác'
+];
+
 // Reusable TicketItem (từ trước, đã đẹp)
 const TicketItem = ({
   booking,
   onCancel,
-  onPay
+  onPay,
+  onViewDetails,
+  cancelling,
+  detailLoading
 }: {
   booking: UserBooking;
-  onCancel?: (id: number) => void;
+  onCancel?: (booking: UserBooking) => void;
   onPay?: (booking: UserBooking) => void;
+  onViewDetails?: (booking: UserBooking) => void;
+  cancelling?: boolean;
+  detailLoading?: boolean;
 }) => {
   const formatTime = (date: string) => format(new Date(date), 'HH:mm');
   const formatDate = (date: string) => format(new Date(date), 'dd/MM/yyyy');
@@ -117,18 +132,46 @@ const TicketItem = ({
       {/* Actions */}
       <div className="card-footer bg-transparent border-0 pt-0">
         <div className="d-flex gap-2 justify-content-end">
-          <button className="btn btn-outline-primary btn-sm">
-            Chi tiết
+          <button className="btn btn-outline-primary btn-sm" onClick={() => onViewDetails?.(booking)} disabled={detailLoading}>
+            {detailLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                Đang tải...
+              </>
+            ) : (
+              'Chi tiết'
+            )}
           </button>
           {booking.bookingStatus === 'CONFIRMED' && (
-            <button className="btn btn-outline-danger btn-sm" onClick={() => onCancel?.(booking.id)}>
-              Hủy vé
+            <button
+              className="btn btn-outline-danger btn-sm"
+              onClick={() => onCancel?.(booking)}
+              disabled={cancelling}
+            >
+              {cancelling ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                  Đang xác nhận...
+                </>
+              ) : (
+                'Hủy vé'
+              )}
             </button>
           )}
           {booking.paymentStatus === 'PENDING' && (
             <button className="btn btn-primary btn-sm" onClick={() => onPay?.(booking)}>
               Thanh toán
             </button>
+          )}
+          {booking.bookingStatus === 'CANCEL_REQUESTED' && (
+            <small className="text-warning text-end w-100">
+              Đã gửi yêu cầu hủy{booking.cancelReason ? `: ${booking.cancelReason}` : ''}.
+            </small>
+          )}
+          {booking.bookingStatus === 'CANCEL_REQUESTED' && (
+            <small className="text-warning text-end w-100">
+              Đã gửi yêu cầu hủy, đang chờ nhà xe xác nhận.
+            </small>
           )}
         </div>
       </div>
@@ -141,12 +184,28 @@ export default function MyTickets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<string>('');
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [detailModalLoading, setDetailModalLoading] = useState(false);
+  const [detailModalBooking, setDetailModalBooking] = useState<UserBooking | null>(null);
+  const detailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cancelModalBooking, setCancelModalBooking] = useState<UserBooking | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>(CANCEL_REASONS[0]);
+  const [cancelNote, setCancelNote] = useState('');
+  const [cancelAgree, setCancelAgree] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelError, setCancelError] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
     pages: 1,
     total: 0,
     limit: 10
   });
+  const selectedTripCompanyName =
+    detailModalBooking?.trip?.company?.name ||
+    detailModalBooking?.trip?.bus?.company?.name ||
+    'Nhà xe đang cập nhật';
 
   const loadBookings = useCallback(async () => {
     try {
@@ -171,21 +230,43 @@ export default function MyTickets() {
     loadBookings();
   }, [loadBookings]);
 
-  const handleCancelBooking = async (bookingId: number) => {
-    if (!confirm('Hủy vé này?')) return;
-    try {
-      await bookingAPI.cancelBooking(bookingId);
-      alert('Hủy thành công');
-      loadBookings();
-    } catch {
-      alert('Lỗi hủy vé');
+  useEffect(() => {
+    return () => {
+      if (detailTimeoutRef.current) {
+        clearTimeout(detailTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleViewDetails = (booking: UserBooking) => {
+    if (detailTimeoutRef.current) {
+      clearTimeout(detailTimeoutRef.current);
     }
+    setDetailModalVisible(true);
+    setDetailModalLoading(true);
+    setDetailModalBooking(null);
+    setDetailLoadingId(booking.id);
+    detailTimeoutRef.current = setTimeout(() => {
+      setDetailModalLoading(false);
+      setDetailModalBooking(booking);
+      setDetailLoadingId(null);
+    }, 500);
+  };
+
+  const closeDetailModal = () => {
+    if (detailTimeoutRef.current) {
+      clearTimeout(detailTimeoutRef.current);
+    }
+    setDetailModalVisible(false);
+    setDetailModalLoading(false);
+    setDetailModalBooking(null);
+    setDetailLoadingId(null);
   };
 
   const handlePayBooking = async (booking: UserBooking) => {
     const pendingPayment = booking.payments?.find((payment) => payment.paymentStatus === 'PENDING');
     if (!pendingPayment) {
-      alert('Ve nay khong co giao dich cho thanh toan.');
+      alert('Vé này không có giao dịch cho thanh toán.');
       return;
     }
 
@@ -202,6 +283,79 @@ export default function MyTickets() {
     } catch (err) {
       console.error('Thanh toan loi:', err);
       alert('Thanh toan khong thanh cong, vui long thu lai.');
+    }
+  };
+
+  const resetCancelState = () => {
+    setCancelReason(CANCEL_REASONS[0]);
+    setCancelNote('');
+    setCancelAgree(false);
+    setCancelError('');
+  };
+
+  const handleOpenCancelModal = (booking: UserBooking) => {
+    setCancelModalBooking(booking);
+    setCancelReason(booking.cancelReason || CANCEL_REASONS[0]);
+    setCancelNote('');
+    setCancelAgree(false);
+    setCancelError('');
+  };
+
+  const handleCloseCancelModal = () => {
+    if (cancelSubmitting) return;
+    setCancelModalBooking(null);
+    resetCancelState();
+  };
+
+  const handleSubmitCancelRequest = async () => {
+    if (!cancelModalBooking) {
+      setCancelError('Không tìm thấy vé đang chọn hiện tại.');
+      return;
+    }
+
+    if (!cancelAgree) {
+      setCancelError('Vui lòng xác nhận đã đọc và đồng ý chính sách hủy.');
+      return;
+    }
+
+    setCancelSubmitting(true);
+    setCancelError('');
+
+    try {
+      const payload = {
+        reason: cancelReason,
+        note: cancelNote.trim() ? cancelNote.trim() : undefined
+      };
+
+      const response = await bookingAPI.requestCancellation(cancelModalBooking.id, payload);
+      const updatedBooking = response.booking;
+      if (updatedBooking) {
+        setBookings((prev) => prev.map((item) => (item.id === updatedBooking.id ? updatedBooking : item)));
+      } else {
+        setBookings((prev) =>
+          prev.map((item) =>
+            item.id === cancelModalBooking.id
+              ? {
+                  ...item,
+                  bookingStatus: 'CANCEL_REQUESTED',
+                  cancelReason: cancelReason
+                }
+              : item
+          )
+        );
+      }
+
+      setFeedback({
+        type: 'success',
+        text: response.message || 'đã gửi yêu cầu hủy vé. Nhà xe sẽ sớm phản hồi.'
+      });
+
+      setCancelSubmitting(false);
+      handleCloseCancelModal();
+    } catch (err) {
+      const apiError = err as ApiError;
+      setCancelError(apiError.response?.data?.message || 'Không thể gửi yêu cầu hủy. Vui lòng thử lại.');
+      setCancelSubmitting(false);
     }
   };
 
@@ -238,6 +392,12 @@ export default function MyTickets() {
           })}
         </div>
 
+        {feedback && (
+          <div className={`alert ${feedback.type === 'success' ? 'alert-success' : 'alert-danger'} mt-3`} role="alert">
+            {feedback.text}
+          </div>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="text-center py-5">
@@ -264,7 +424,14 @@ export default function MyTickets() {
             <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
               {bookings.map((booking) => (
                 <div key={booking.id} className="col">
-                  <TicketItem booking={booking} onCancel={handleCancelBooking} onPay={handlePayBooking} />
+                  <TicketItem
+                    booking={booking}
+                    onCancel={handleOpenCancelModal}
+                    onPay={handlePayBooking}
+                    onViewDetails={handleViewDetails}
+                    cancelling={cancelSubmitting && cancelModalBooking?.id === booking.id}
+                    detailLoading={detailLoadingId === booking.id}
+                  />
                 </div>
               ))}
             </div>
@@ -300,6 +467,205 @@ export default function MyTickets() {
           </>
         )}
       </div>
+
+      {detailModalVisible && (
+        <div
+          className="ticket-detail-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 1050,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={closeDetailModal}
+        >
+          <div
+            className="bg-white shadow-lg rounded-4 p-4 w-100"
+            style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {detailModalLoading || !detailModalBooking ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-3 text-muted">đang tải chi tiết vé...</p>
+              </div>
+            ) : (
+              <>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h4 className="mb-1">Chi tiết vé</h4>
+                    <small className="text-muted">Mã đặt vé: {detailModalBooking.bookingCode}</small>
+                  </div>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={closeDetailModal}>
+                    Đóng
+                  </button>
+                </div>
+
+                <div className="mb-3">
+                  <div className="fw-bold text-primary">
+                    {detailModalBooking.trip.departureLocation} &rarr; {detailModalBooking.trip.arrivalLocation}
+                  </div>
+                  <small className="text-muted d-block">
+                    Khởi hành: {format(new Date(detailModalBooking.trip.departureTime), 'HH:mm dd/MM/yyyy')}
+                  </small>
+                  <small className="text-muted">
+                    Nhà xe: <span className="fw-semibold text-dark">{selectedTripCompanyName}</span>
+                  </small>
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted mb-1">Họ tên</div>
+                      <strong>{detailModalBooking.passengerName}</strong>
+                      <div className="text-muted mt-2">Điện thoại</div>
+                      <strong>{detailModalBooking.passengerPhone}</strong>
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted mb-1">Trạng thái</div>
+                      <span className={`badge bg-${statusVariant(detailModalBooking.bookingStatus)}`}>
+                        {toViStatus(detailModalBooking.bookingStatus)}
+                      </span>
+                      <div className="text-muted mt-2">Thanh toán</div>
+                      <span className={`badge bg-${statusVariant(detailModalBooking.paymentStatus)}`}>
+                        {toViStatus(detailModalBooking.paymentStatus)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded p-3 mt-3">
+                  <div className="text-muted mb-2">Ghế ngồi</div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {detailModalBooking.seatNumbers.map((seat, idx) => (
+                      <span key={idx} className="badge bg-light text-dark border">
+                        {seat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border rounded p-3 mt-3">
+                  <div className="d-flex justify-content-between">
+                    <span>Tổng tiền</span>
+                    <strong>{detailModalBooking.totalPrice.toLocaleString('vi-VN')} ₫</strong>
+                  </div>
+                  <div className="d-flex justify-content-between text-muted">
+                    <span>Giảm giá</span>
+                    <span>{detailModalBooking.discountAmount.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div className="d-flex justify-content-between mt-2">
+                    <span>Thanh toán</span>
+                    <span className="fw-bold text-danger">
+                      {(detailModalBooking.payableAmount ?? detailModalBooking.totalPrice).toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {cancelModalBooking && (
+        <div className="booking-detail-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !cancelSubmitting && handleCloseCancelModal()}>
+          <div className="booking-detail-dialog" role="dialog" aria-modal="true">
+            <button type="button" className="booking-detail-close" onClick={handleCloseCancelModal} aria-label="Đóng" disabled={cancelSubmitting}>
+              ×
+            </button>
+
+            <h4 className="mb-3">Hủy vé {cancelModalBooking.bookingCode}</h4>
+            <p className="text-muted">
+              Vui lòng chọn lý do và xác nhận chính sách hủy. Nhà xe sẽ phản hồi trong thời gian sớm nhất.
+            </p>
+
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Lý do hủy vé</label>
+              <select
+                className="form-select"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                disabled={cancelSubmitting}
+              >
+                {CANCEL_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Ghi chú thêm cho nhà xe</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={cancelNote}
+                onChange={(e) => setCancelNote(e.target.value)}
+                placeholder="Ví dụ: Tôi đã đặt nhầm tên hành khách..."
+                disabled={cancelSubmitting}
+              />
+            </div>
+
+            <div className="alert alert-light border mb-3">
+              <strong>Chính sách hủy:</strong>
+              <ul className="mb-0">
+                <li>Trước 24 giờ: hoàn 100%.</li>
+                <li>Từ 6 - 24 giờ: hoàn 50%.</li>
+                <li>Ít hơn 6 giờ: không hoàn tiền.</li>
+              </ul>
+            </div>
+
+            <div className="form-check mb-3">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="cancel-agree"
+                checked={cancelAgree}
+                onChange={(e) => setCancelAgree(e.target.checked)}
+                disabled={cancelSubmitting}
+              />
+              <label className="form-check-label" htmlFor="cancel-agree">
+                Tôi đồng ý với chính sách hủy vé và hoàn tiền.
+              </label>
+            </div>
+
+            {cancelError && (
+              <div className="alert alert-danger" role="alert">
+                {cancelError}
+              </div>
+            )}
+
+            <div className="d-flex justify-content-end gap-2">
+              <button type="button" className="btn btn-outline-secondary" onClick={handleCloseCancelModal} disabled={cancelSubmitting}>
+                Đóng
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleSubmitCancelRequest} disabled={cancelSubmitting}>
+                {cancelSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu hủy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

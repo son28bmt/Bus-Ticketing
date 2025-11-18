@@ -649,6 +649,102 @@
   cursor: not-allowed;
 }
 
+.guest-booking-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1100;
+}
+
+.guest-booking-card {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  padding: 25px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+  position: relative;
+  color: #2d3748;
+}
+
+.guest-booking-card h3 {
+  margin-top: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.guest-booking-card p {
+  margin-bottom: 12px;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.guest-booking-card ul {
+  margin: 0 0 12px 18px;
+  color: #4a5568;
+}
+
+.guest-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.guest-booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.guest-booking-actions .btn-secondary {
+  background: #38a169;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guest-booking-actions .btn-secondary:hover {
+  background: #2f855a;
+}
+
+.guest-booking-actions .btn-outline {
+  border: 2px solid #2563eb;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guest-booking-actions .btn-outline:hover {
+  background: #eef2ff;
+}
+
+.guest-booking-actions .btn-link {
+  background: none;
+  border: none;
+  color: #1d4ed8;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 12px 0;
+}
+
 /* Loading & Error */
 .loading, .error-message {
   text-align: center;

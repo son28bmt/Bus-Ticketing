@@ -21,6 +21,7 @@ export default function TripDetail() {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showGuestModal, setShowGuestModal] = useState(false);
 
   // Load trip detail
   const loadTripDetail = useCallback(async (tripId: string) => {
@@ -123,8 +124,11 @@ export default function TripDetail() {
         seats: normalizedSeats ?? generateMockSeats(rawTrip.totalSeats, busTypeHint, bookedSeatSet)
       };
 
+      const companyInfo = rawTrip.company ?? rawTrip.bus?.company ?? null;
+
       const uiTrip: UITrip = {
         ...rawTrip,
+        company: companyInfo ?? undefined,
         bus: busWithSeats,
         bookedSeatNumbers: Array.from(bookedSeatSet)
       };
@@ -161,12 +165,53 @@ export default function TripDetail() {
         )
       : 0;
 
+  const toPaymentTrip = (t: UITrip): PaymentTrip => {
+    const dep = t.departureLocation?.name || '';
+    const arr = t.arrivalLocation?.name || '';
+    const durationMins = Math.max(
+      0,
+      Math.floor((new Date(t.arrivalTime).getTime() - new Date(t.departureTime).getTime()) / 60000)
+    );
+
+    return {
+      id: t.id,
+      route: `${dep} -> ${arr}`,
+      departureLocation: dep,
+      arrivalLocation: arr,
+      departureTime: t.departureTime,
+      arrivalTime: t.arrivalTime,
+      basePrice: t.basePrice,
+      totalSeats: t.totalSeats,
+      availableSeats: t.availableSeats,
+      companyId: t.companyId ?? t.bus?.company?.id,
+      company: t.company ?? (t.bus?.company ? { ...t.bus.company } : undefined),
+      status: t.status,
+      duration: durationMins,
+      distance: 0,
+      bus: {
+        id: t.bus.id,
+        busNumber: t.bus.busNumber,
+        busType: t.bus.busType,
+        capacity: t.bus.capacity,
+        facilities: t.bus.facilities,
+        seats: t.bus.seats,
+        company: t.bus.company ? { ...t.bus.company } : undefined
+      }
+    };
+  };
+
+  const proceedToPayment = () => {
+    if (!trip) return;
+    navigate('/payment', {
+      state: {
+        trip: toPaymentTrip(trip),
+        selectedSeats,
+        totalPrice: calculateTotalPrice()
+      }
+    });
+  };
+
   const handleBooking = () => {
-    if (!user) {
-      alert('Vui lòng đăng nhập để đặt vé');
-      navigate('/login');
-      return;
-    }
     if (!trip) {
       alert('Không thể tải thông tin chuyến xe');
       return;
@@ -175,48 +220,26 @@ export default function TripDetail() {
       alert('Vui lòng chọn ít nhất một ghế');
       return;
     }
+    if (!user) {
+      setShowGuestModal(true);
+      return;
+    }
+    proceedToPayment();
+  };
 
-    const toPaymentTrip = (t: UITrip): PaymentTrip => {
-      const dep = t.departureLocation?.name || '';
-      const arr = t.arrivalLocation?.name || '';
-      const durationMins = Math.max(
-        0,
-        Math.floor(
-          (new Date(t.arrivalTime).getTime() - new Date(t.departureTime).getTime()) / 60000
-        )
-      );
+  const continueAsGuest = () => {
+    setShowGuestModal(false);
+    proceedToPayment();
+  };
 
-      return {
-        id: t.id,
-        route: `${dep} -> ${arr}`,
-        departureLocation: dep,
-        arrivalLocation: arr,
-        departureTime: t.departureTime,
-        arrivalTime: t.arrivalTime,
-        basePrice: t.basePrice,
-        totalSeats: t.totalSeats,
-        availableSeats: t.availableSeats,
-        status: t.status,
-        duration: durationMins,
-        distance: 0,
-        bus: {
-          id: t.bus.id,
-          busNumber: t.bus.busNumber,
-          busType: t.bus.busType,
-          capacity: t.bus.capacity,
-          facilities: t.bus.facilities,
-          seats: t.bus.seats
-        }
-      };
-    };
+  const goToLogin = () => {
+    setShowGuestModal(false);
+    navigate('/login');
+  };
 
-    navigate('/payment', {
-      state: {
-        trip: toPaymentTrip(trip),
-        selectedSeats,
-        totalPrice: calculateTotalPrice()
-      }
-    });
+  const goToRegister = () => {
+    setShowGuestModal(false);
+    navigate('/register');
   };
 
   const formatPrice = (price: number) =>
@@ -371,6 +394,40 @@ export default function TripDetail() {
           </div>
         </div>
       </div>
+      {showGuestModal && (
+        <div className="guest-booking-modal" role="dialog" aria-modal="true">
+          <div className="guest-booking-card">
+            <button
+              type="button"
+              className="guest-modal-close"
+              aria-label="Đóng cảnh báo"
+              onClick={() => setShowGuestModal(false)}
+            >
+              ×
+            </button>
+            <h3>Đặt vé mà không đăng nhập?</h3>
+            <p>
+              Bạn vẫn có thể tiếp tục đặt vé với tư cách khách nhưng sẽ không áp dụng được voucher và
+              cần nhập lại thông tin liên hệ trên trang thanh toán.
+            </p>
+            <ul>
+              <li>Đăng nhập hoặc đăng ký để lưu lịch sử, giữ ghế nhanh và dùng các mã ưu đãi.</li>
+              <li>Chọn &ldquo;Bỏ qua&rdquo; để tiếp tục thanh toán ngay bây giờ.</li>
+            </ul>
+            <div className="guest-booking-actions">
+              <button type="button" className="btn-secondary" onClick={continueAsGuest}>
+                Bỏ qua & tiếp tục đặt vé
+              </button>
+              <button type="button" className="btn-outline" onClick={goToLogin}>
+                Đăng nhập
+              </button>
+              <button type="button" className="btn-outline" onClick={goToRegister}>
+                Đăng ký
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

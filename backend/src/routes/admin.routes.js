@@ -4,6 +4,7 @@ const { authenticateToken, requireAdmin, authorize } = require('../middlewares/a
 const reportController = require('../controllers/admin/report.controller');
 const adminUserController = require('../controllers/admin/user.controller');
 const adminTripController = require('../controllers/admin/trip.controller');
+const adminDriverController = require('../controllers/admin/driver.controller');
 const adminBusController = require('../controllers/admin/bus.controller');
 const adminCompanyController = require('../controllers/admin/company.controller');
 const newsController = require('../controllers/admin/news.controller');
@@ -31,6 +32,7 @@ router.get('/users', authorize(PERMISSIONS.USERS_VIEW), adminUserController.getA
 router.post('/users', authorize(PERMISSIONS.USERS_MANAGE), adminUserController.createUser);
 router.put('/users/:id', authorize(PERMISSIONS.USERS_MANAGE), adminUserController.updateUser);
 router.delete('/users/:id', authorize(PERMISSIONS.USERS_MANAGE), adminUserController.deleteUser);
+router.get('/drivers', authorize(PERMISSIONS.USERS_VIEW), adminDriverController.getDrivers);
 
 // Company directory
 router.get('/companies', authorize(PERMISSIONS.USERS_VIEW), adminCompanyController.getCompanies);

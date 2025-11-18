@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { companyAPI } from '../../services/company';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { companyAPI, type TripReportItem, type TripReportSummary } from '../../services/company';
 import type { UserBooking } from '../../types/payment';
 import { formatPrice } from '../../utils/price';
 import { toViStatus, statusVariant } from '../../utils/status';
@@ -83,6 +83,20 @@ export default function Reports() {
   const [bookings, setBookings] = useState<UserBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tripReports, setTripReports] = useState<TripReportItem[]>([]);
+  const [tripSummary, setTripSummary] = useState<TripReportSummary | null>(null);
+  const [tripReportsLoading, setTripReportsLoading] = useState(false);
+  const [tripReportsError, setTripReportsError] = useState<string | null>(null);
+  const [tripReportFilters, setTripReportFilters] = useState<{ from: string; to: string }>({
+    from: '',
+    to: '',
+  });
+  const [tripReportParams, setTripReportParams] = useState<{ from: string; to: string }>({
+    from: '',
+    to: '',
+  });
+  const [selectedReport, setSelectedReport] = useState<TripReportItem | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -107,7 +121,73 @@ export default function Reports() {
     load();
   }, [load]);
 
+  const loadTripReports = useCallback(
+    async (params: { from: string; to: string }) => {
+      try {
+        setTripReportsLoading(true);
+        setTripReportsError(null);
+        const response = await companyAPI.getTripReports({
+          from: params.from || undefined,
+          to: params.to || undefined,
+        });
+        if (!response?.success) {
+          throw new Error(response?.message || 'Không thể tải báo cáo chuyến.');
+        }
+        const payload = response.data || { items: [], summary: null };
+        setTripReports(Array.isArray(payload.items) ? payload.items : []);
+        setTripSummary(payload.summary || null);
+      } catch (err) {
+        console.error('Company trip reports load error:', err);
+        const message = err instanceof Error ? err.message : 'Không thể tải báo cáo chuyến.';
+        setTripReportsError(message);
+        setTripReports([]);
+        setTripSummary(null);
+      } finally {
+        setTripReportsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadTripReports(tripReportParams);
+  }, [loadTripReports, tripReportParams]);
+
   const stats = useMemo(() => computeStats(bookings), [bookings]);
+  const totalReports = tripSummary?.totalReports || 0;
+
+  const handleTripFilterChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setTripReportFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleTripFilterSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setTripReportParams(tripReportFilters);
+  };
+
+  const handleTripFilterReset = () => {
+    setTripReportFilters({ from: '', to: '' });
+    setTripReportParams({ from: '', to: '' });
+  };
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('vi-VN', { hour12: false });
+  };
+
+  const handleOpenReportDetail = (report: TripReportItem) => {
+    setSelectedReport(report);
+    setDetailLoading(true);
+    setTimeout(() => setDetailLoading(false), 350);
+  };
+
+  const handleCloseReportDetail = () => {
+    setSelectedReport(null);
+    setDetailLoading(false);
+  };
 
   return (
     <div className="container py-5">
@@ -233,6 +313,226 @@ export default function Reports() {
             </div>
           </div>
         </>
+      )}
+
+      <section className="card p-4 mt-4 shadow-sm">
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 className="h5 mb-1">Báo cáo chuyến (TripReport)</h2>
+            <p className="text-muted mb-0">Tổng hợp ghi chú sau hành trình do tài xế gửi lên hệ thống.</p>
+          </div>
+          <form className="d-flex flex-wrap gap-2" onSubmit={handleTripFilterSubmit}>
+            <div className="d-flex flex-column">
+              <label htmlFor="report-from" className="form-label mb-1">
+                Từ ngày
+              </label>
+              <input
+                id="report-from"
+                name="from"
+                type="date"
+                className="form-control form-control-sm"
+                value={tripReportFilters.from}
+                onChange={handleTripFilterChange}
+              />
+            </div>
+            <div className="d-flex flex-column">
+              <label htmlFor="report-to" className="form-label mb-1">
+                Đến ngày
+              </label>
+              <input
+                id="report-to"
+                name="to"
+                type="date"
+                className="form-control form-control-sm"
+                value={tripReportFilters.to}
+                onChange={handleTripFilterChange}
+              />
+            </div>
+            <div className="d-flex align-items-end gap-2">
+              <button className="btn btn-primary btn-sm" type="submit" disabled={tripReportsLoading}>
+                {tripReportsLoading ? 'Đang lọc...' : 'Lọc dữ liệu'}
+              </button>
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                type="button"
+                onClick={handleTripFilterReset}
+                disabled={tripReportsLoading}
+              >
+                Xóa lọc
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {tripReportsError && (
+          <div className="alert alert-danger" role="alert">
+            {tripReportsError}
+          </div>
+        )}
+
+        <div className="row g-3 mb-3">
+          <div className="col-12 col-md-4">
+            <div className="card h-100 border-0 shadow-sm">
+              <div className="card-body">
+                <p className="text-muted text-uppercase fw-semibold mb-1">Tổng số báo cáo</p>
+                <h3 className="display-6">{totalReports}</h3>
+                <p className="text-muted mb-0">
+                  Cập nhật gần nhất: <strong>{formatDateTime(tripSummary?.lastReportAt)}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-md-4">
+            <div className="card h-100 border-0 shadow-sm">
+              <div className="card-body">
+                <p className="text-muted text-uppercase fw-semibold mb-2">Tài xế được nhắc tới nhiều</p>
+                {tripSummary?.topDrivers?.length ? (
+                  <ul className="list-unstyled mb-0">
+                    {tripSummary.topDrivers.map((driver) => (
+                      <li key={`${driver.driverId ?? 'n/a'}`} className="d-flex justify-content-between small mb-1">
+                        <span>{driver.name}</span>
+                        <span className="fw-semibold">{driver.count} lần</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted mb-0 small">Chưa có dữ liệu.</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-md-4">
+            <div className="card h-100 border-0 shadow-sm">
+              <div className="card-body">
+                <p className="text-muted text-uppercase fw-semibold mb-2">Tuyến có nhiều báo cáo</p>
+                {tripSummary?.topRoutes?.length ? (
+                  <ul className="list-unstyled mb-0">
+                    {tripSummary.topRoutes.map((route) => (
+                      <li key={route.route} className="d-flex justify-content-between small mb-1">
+                        <span>{route.route}</span>
+                        <span className="fw-semibold">{route.count} lần</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted mb-0 small">Chưa có dữ liệu.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="table-responsive">
+          {tripReportsLoading && tripReports.length === 0 ? (
+            <div className="p-4 text-center text-muted fst-italic">Đang tải báo cáo chuyến...</div>
+          ) : tripReports.length ? (
+            <table className="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Tuyến</th>
+                  <th>Tài xế</th>
+                  <th>Ghi chú</th>
+                  <th className="text-end">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tripReports.map((report) => (
+                  <tr key={report.id}>
+                    <td>{formatDateTime(report.createdAt)}</td>
+                    <td>
+                      <div className="fw-semibold">{report.trip?.routeLabel || '—'}</div>
+                      <small className="text-muted">
+                        Khởi hành: {formatDateTime(report.trip?.departureTime)}
+                      </small>
+                    </td>
+                    <td>
+                      <div className="fw-semibold">{report.driver?.name || 'Chưa phân công'}</div>
+                      {report.driver?.phone && <small className="text-muted">{report.driver.phone}</small>}
+                    </td>
+                    <td>
+                      <div className="text-wrap" style={{ maxWidth: '360px' }}>
+                        {report.note}
+                      </div>
+                    </td>
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => handleOpenReportDetail(report)}
+                      >
+                        Chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-4 text-center text-muted">Chưa có báo cáo chuyến nào trong thời gian này.</div>
+          )}
+        </div>
+      </section>
+      {selectedReport && (
+        <div className="trip-report-overlay" role="dialog" aria-modal="true">
+          <div className="trip-report-modal">
+            <div className="trip-report-modal__header">
+              <h5 className="mb-0">Chi tiết báo cáo chuyến</h5>
+              <button type="button" className="btn-close" onClick={handleCloseReportDetail} aria-label="Đóng" />
+            </div>
+            <div className="trip-report-modal__body">
+              {detailLoading ? (
+                <div className="trip-report-modal__spinner">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="text-muted mt-3 mb-0">Đang tải chi tiết …</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3">
+                    <small className="text-muted text-uppercase">Thời gian gửi</small>
+                    <p className="fs-6 fw-semibold mb-0">{formatDateTime(selectedReport.createdAt)}</p>
+                  </div>
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <div className="border rounded p-3 h-100">
+                        <small className="text-muted text-uppercase">Tuyến</small>
+                        <p className="mb-1 fw-semibold">{selectedReport.trip?.routeLabel || '—'}</p>
+                        <p className="mb-0 text-muted">
+                          Khởi hành: {formatDateTime(selectedReport.trip?.departureTime)}
+                          <br />
+                          Dự kiến đến: {formatDateTime(selectedReport.trip?.arrivalTime)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="border rounded p-3 h-100">
+                        <small className="text-muted text-uppercase">Tài xế</small>
+                        <p className="mb-1 fw-semibold">{selectedReport.driver?.name || 'Chưa phân công'}</p>
+                        {selectedReport.driver?.phone && (
+                          <p className="mb-0 text-muted">{selectedReport.driver.phone}</p>
+                        )}
+                        {selectedReport.trip?.busNumber && (
+                          <p className="mb-0 text-muted">Xe: {selectedReport.trip.busNumber}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <small className="text-muted text-uppercase">Ghi chú</small>
+                    <div className="border rounded p-3 bg-light">{selectedReport.note || '—'}</div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="trip-report-modal__footer">
+              <button type="button" className="btn btn-secondary" onClick={handleCloseReportDetail}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

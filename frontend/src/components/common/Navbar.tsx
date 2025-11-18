@@ -1,10 +1,11 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+﻿import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useUserStore } from '../../store/user';
 import ROLES from '../../constants/roles';
 import '../../style/nav.css';
 
 const isCompanyRole = (role?: string | null) => role === ROLES.COMPANY;
+const isDriverRole = (role?: string | null) => role === ROLES.DRIVER;
 
 export default function Navbar() {
   const { user, logout } = useUserStore();
@@ -129,6 +130,8 @@ export default function Navbar() {
                       ? 'Quản trị viên'
                       : isCompanyRole(user.role)
                       ? 'Nhà xe'
+                      : isDriverRole(user.role)
+                      ? 'Tài xế'
                       : 'Hành khách'}
                   </span>
                 </div>
@@ -138,7 +141,7 @@ export default function Navbar() {
               </button>
 
               {showUserDropdown && (
-                <div className="dropdown-menu" style ={{ width: '250px' }}>
+                <div className="dropdown-menu" style={{ width: '250px' }}>
                   <div className="dropdown-header">
                     <div className="user-details">
                       <strong>{user.name}</strong>
@@ -202,6 +205,13 @@ export default function Navbar() {
                       </Link>
                       <Link to="/company/reports" className="dropdown-item" onClick={handleDropdownLinkClick}>
                         <span className="item-text">Báo cáo</span>
+                      </Link>
+                    </div>
+                  ) : isDriverRole(user.role) ? (
+                    <div className="dropdown-section">
+                      <span className="section-title">Tài xế</span>
+                      <Link to="/driver/trips" className="dropdown-item" onClick={handleDropdownLinkClick}>
+                        <span className="item-text">Chuyến xe</span>
                       </Link>
                     </div>
                   ) : (
@@ -301,7 +311,7 @@ export default function Navbar() {
                 className="mobile-auth-btn login"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <span className="btn-text">Đăng nhập</span>
+                <span className="btn-text">ÄÄƒng nháº­p</span>
               </Link>
               <Link
                 to="/register"
@@ -317,4 +327,9 @@ export default function Navbar() {
     </nav>
   );
 }
+
+
+
+
+
 

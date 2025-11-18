@@ -57,7 +57,7 @@ const getBuses = async (req, res) => {
         defaults: {
           name: 'Nhà xe mặc định',
           code: 'DEFAULT',
-          phone: '0123456789',
+          phone: '0915582684',
           email: 'admin@default.com',
           address: 'Địa chỉ mặc định',
           isActive: true
@@ -173,7 +173,7 @@ const createBus = async (req, res) => {
         defaults: {
           name: 'Default Company',
           code: 'DEFAULT',
-          phone: '0123456789',
+          phone: '0915582684',
           email: 'admin@default.com',
           address: 'Default address',
           isActive: true

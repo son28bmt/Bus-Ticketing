@@ -9,6 +9,7 @@ interface BookingDetailModalProps {
   loading?: boolean;
   onClose: () => void;
   context?: 'admin' | 'company';
+  onRequestCancel?: (booking: UserBooking, options?: { refund?: boolean }) => void;
 }
 
 const getStatusLabel = (status?: string) => {
@@ -19,14 +20,18 @@ const getStatusLabel = (status?: string) => {
       return 'Hoàn tất';
     case 'CANCELLED':
       return 'Đã hủy';
+    case 'CANCEL_REQUESTED':
+      return 'Chờ xác nhận hủy';
     case 'PAID':
       return 'Đã thanh toán';
     case 'PENDING':
       return 'Chờ thanh toán';
     case 'REFUNDED':
       return 'Đã hoàn tiền';
+    case 'REFUND_PENDING':
+      return 'Chờ hoàn tiền';
     default:
-      return status || '—';
+      return status || '---';
   }
 };
 
@@ -35,7 +40,8 @@ export default function BookingDetailModal({
   booking,
   loading = false,
   onClose,
-  context = 'company'
+  context = 'company',
+  onRequestCancel
 }: BookingDetailModalProps) {
   if (!open) {
     return null;
@@ -114,6 +120,12 @@ export default function BookingDetailModal({
                   <p className="detail-label">Ghi chú</p>
                   <p className="detail-value">{booking.notes || 'Không có'}</p>
                 </div>
+                {booking.cancelReason && (
+                  <div>
+                    <p className="detail-label">Lý do hủy</p>
+                    <p className="detail-value">{booking.cancelReason}</p>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -186,6 +198,12 @@ export default function BookingDetailModal({
                     {booking.voucher?.code || booking.voucherId ? booking.voucher?.code ?? `ID ${booking.voucherId}` : 'Không áp dụng'}
                   </p>
                 </div>
+                {booking.refundAmount != null && (
+                  <div>
+                    <p className="detail-label">Hoàn tiền</p>
+                    <p className="detail-value text-success">{formatPrice(booking.refundAmount)}</p>
+                  </div>
+                )}
               </div>
 
               <div className="booking-detail-payments">
@@ -217,6 +235,30 @@ export default function BookingDetailModal({
                 )}
               </div>
             </section>
+
+            {context === 'company' && onRequestCancel && (
+              <section className="booking-detail-section">
+                <h3>Thao tác nhanh</h3>
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger"
+                    onClick={() => onRequestCancel(booking)}
+                    disabled={booking.bookingStatus === 'CANCELLED' || booking.bookingStatus === 'CANCEL_REQUESTED'}
+                  >
+                    Hủy vé
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    onClick={() => onRequestCancel(booking, { refund: true })}
+                    disabled={booking.paymentStatus !== 'PAID' && booking.paymentStatus !== 'REFUND_PENDING'}
+                  >
+                    Hoàn vé / hoàn tiền
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>

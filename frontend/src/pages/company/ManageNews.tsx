@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { ChangeEvent, FormEvent, ReactElement } from "react";
 import newsService from "../../services/news";
 import RichTextEditor from "../../components/common/RichTextEditor";
 
@@ -41,7 +42,7 @@ const defaultForm: CompanyNewsFormData = {
   isHighlighted: false,
 };
 
-export default function CompanyManageNews(): JSX.Element {
+export default function CompanyManageNews(): ReactElement {
   const [newsList, setNewsList] = useState<News[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -62,7 +63,7 @@ export default function CompanyManageNews(): JSX.Element {
     limit: 10,
   });
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
       const response = await newsService.getCompanyNews(searchParams);
@@ -74,11 +75,11 @@ export default function CompanyManageNews(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     fetchNews();
-  }, [searchParams]);
+  }, [fetchNews]);
 
   const handleOpenModal = (news?: News) => {
     if (news) {
@@ -107,9 +108,7 @@ export default function CompanyManageNews(): JSX.Element {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -119,7 +118,7 @@ export default function CompanyManageNews(): JSX.Element {
     }));
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
 
@@ -173,7 +172,7 @@ export default function CompanyManageNews(): JSX.Element {
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchParams((prev) => ({
       ...prev,
       search: e.target.value,

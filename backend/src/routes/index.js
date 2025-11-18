@@ -12,6 +12,8 @@ const companyRoutes = require('./company.routes');
 const userRoutes = require('./user.routes');
 const locationRoutes = require('./location.routes');
 const voucherRoutes = require('./voucher.routes');
+const driverRoutes = require('./driver.routes');
+const chatRoutes = require('./chat.routes');
 
 console.log('🔄 Loading routes...');
 
@@ -26,6 +28,8 @@ router.use('/api/company', companyRoutes);
 router.use('/api/user', userRoutes);
 router.use('/api/locations', locationRoutes);
 router.use('/api/vouchers', voucherRoutes);
+router.use('/api/driver', driverRoutes);
+router.use('/api/chat', chatRoutes);
 
 console.log('✅ Routes loaded successfully');
 

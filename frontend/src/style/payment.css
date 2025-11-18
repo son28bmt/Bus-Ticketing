@@ -16,6 +16,26 @@
   color: #1e293b;
 }
 
+.voucher-auth-notice {
+  background: #eef2ff;
+  border: 1px dashed #c7d2fe;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 0.95rem;
+  color: #3730a3;
+}
+
+.voucher-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.voucher-auth-actions .btn-link {
+  color: #2563eb;
+}
+
 .voucher-form {
   display: flex;
   flex-wrap: wrap;
